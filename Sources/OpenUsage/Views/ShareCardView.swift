@@ -51,6 +51,8 @@ struct ShareCardView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
                 }
             }
             Spacer(minLength: 0)

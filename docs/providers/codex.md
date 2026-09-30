@@ -14,8 +14,18 @@ Tracks your ChatGPT/Codex subscription limits using the login from the Codex CLI
 | Today / Yesterday / Last 30 Days | Local spend, as cost, tokens, or both (see below) |
 
 When Codex reports your plan name, OpenUsage shows it beside the provider name.
-The usage entitlement `self_serve_business_prolite` displays as **Business Premium**.
-This is a compatibility mapping for an observed entitlement; other Business/team plans keep their existing names.
+Pro plans use the current names **Pro 100**, **Pro 200**, and **Pro 500** instead of the older usage multipliers.
+
+| Usage API plan | Display name |
+|---|---|
+| `prolite` | Pro 100 |
+| `pro` | Pro 200 |
+| `promax` | Pro 500 |
+| `self_serve_business_prolite` | Business Premium |
+
+The Pro names match [OpenAI's published plan names](https://learn.chatgpt.com/docs/dots#access).
+The Pro identifier mappings were verified against OpenAI's ChatGPT desktop app version 26.928.21956 (build 12404).
+Other Business/team plans keep their existing names; unfamiliar plan identifiers keep a readable name.
 If Codex reports only a 7-day window, it maps to Weekly without inventing a 5-hour Session meter.
 
 ## Where credentials come from

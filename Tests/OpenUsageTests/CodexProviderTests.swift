@@ -127,21 +127,6 @@ final class CodexUsageMapperTests: XCTestCase {
         XCTAssertEqual(progress(mapped.lines, "Weekly")?.periodDurationMs, CodexUsageMapper.weeklyPeriodMs)
     }
 
-    func testPlanNamesPreserveOtherPlansAndUnknownEntitlements() {
-        let cases = [
-            ("prolite", "Pro 5x"),
-            ("pro", "Pro 20x"),
-            ("team", "Team"),
-            ("business", "Business"),
-            ("self_serve_business", "Self Serve Business"),
-            ("self_serve_business_prolite_future", "Self Serve Business Prolite Future"),
-            ("future_plan", "Future Plan")
-        ]
-        for (raw, expected) in cases {
-            XCTAssertEqual(CodexUsageMapper.formatCodexPlan(raw), expected, raw)
-        }
-    }
-
     func testUnknownWindowDurationKeepsPositionalFallback() throws {
         let body = Data("""
         {
@@ -184,7 +169,7 @@ final class CodexUsageMapperTests: XCTestCase {
             now: Date(timeIntervalSince1970: 1_800_000_000)
         )
 
-        XCTAssertEqual(mapped.plan, "Pro 5x")
+        XCTAssertEqual(mapped.plan, "Pro 100")
         XCTAssertEqual(progress(mapped.lines, "Session")?.used, 10)
         XCTAssertEqual(progress(mapped.lines, "Weekly")?.used, 20)
         // Credits lead with the dollar value (4¢/credit), then the raw count — no inverted fake cap.

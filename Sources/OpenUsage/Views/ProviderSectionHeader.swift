@@ -58,9 +58,8 @@ struct ProviderSectionHeader: View {
             // Baseline-aligned pair: the plan badge (and stale tag) are smaller type and sit on the
             // name's text baseline, so the words line up along the bottom rather than floating centered.
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                // Name + plan keep their width and stay on one line; under width pressure (a long plan
-                // name like "Super Grok Heavy") the lower-priority stale tag truncates first instead of
-                // wrapping the name to a second line.
+                // Reserve the plan's full width. Long account/workspace names can truncate, while the
+                // lower-priority stale tag gives way first; everything stays on one line.
                 Text(provider.displayName)
                     .font(.system(size: density.headerPointSize, weight: .semibold))
                     .foregroundStyle(.primary)
@@ -68,7 +67,8 @@ struct ProviderSectionHeader: View {
                     .layoutPriority(1)
                 if let plan {
                     ProviderPlanBadge(plan: plan)
-                        .layoutPriority(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(2)
                 }
                 // Tertiary, below the plan in hierarchy: outdated content, not something the user acts on.
                 // Short by design ("Outdated") so it never pushes the plan name onto a second line — the
