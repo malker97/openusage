@@ -16,6 +16,10 @@ set -euo pipefail
 #        CONFIG             "release" (default) or "debug"
 #        ICLOUD_CONTAINER_ID  optional explicit opt-in to iCloud.com.robinebers.openusage (released
 #                         app history); defaults to the isolated development container
+#        APP_VERSION_LABEL  displayed version (CFBundleShortVersionString); default "<APP_VERSION>-dev"
+#        APP_BUILD          CFBundleVersion override
+#        TELEMETRY          "on" (default) or "off" for unofficial/personal packages, which must not
+#                         report into the official project's analytics
 #        ICLOUD_PROVISIONING_PROFILE  optional override for the development provisioning profile;
 #                         otherwise the newest matching installed profile is selected automatically
 
@@ -31,7 +35,15 @@ case "$ICLOUD_CONTAINER_ID" in
   *) echo "unsupported iCloud history container: $ICLOUD_CONTAINER_ID" >&2; exit 1 ;;
 esac
 APP_VERSION="0.7.0"
-APP_BUILD="0.7.0"
+APP_VERSION_LABEL="${APP_VERSION_LABEL:-$APP_VERSION-dev}"
+APP_BUILD="${APP_BUILD:-0.7.0}"
+TELEMETRY="${TELEMETRY:-on}"
+case "$TELEMETRY" in
+  on) TELEMETRY_PLIST="" ;;
+  off) TELEMETRY_PLIST="  <key>OpenUsageTelemetryDisabled</key>
+  <true/>" ;;
+  *) echo "TELEMETRY must be on or off, got: $TELEMETRY" >&2; exit 1 ;;
+esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/script/macos_support.sh"
@@ -67,7 +79,7 @@ if [ ! -x "$BUILD_CLI_BINARY" ]; then
   exit 1
 fi
 
-echo "==> staging $APP_BUNDLE (iCloud history: $ICLOUD_CONTAINER_ID)"
+echo "==> staging $APP_BUNDLE ($APP_VERSION_LABEL, telemetry $TELEMETRY, iCloud history: $ICLOUD_CONTAINER_ID)"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_HELPERS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
@@ -137,7 +149,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>$APP_VERSION-dev</string>
+  <string>$APP_VERSION_LABEL</string>
   <key>CFBundleVersion</key>
   <string>$APP_BUILD</string>
   <key>LSMinimumSystemVersion</key>
@@ -152,6 +164,7 @@ cat >"$INFO_PLIST" <<PLIST
   <string>NSApplication</string>
   <key>NSHighResolutionCapable</key>
   <true/>
+$TELEMETRY_PLIST
   <key>NSUbiquitousContainers</key>
   <dict>
     <key>$ICLOUD_CONTAINER_ID</key>

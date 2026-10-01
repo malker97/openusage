@@ -3,6 +3,9 @@
 OpenUsage always sends an **anonymous daily active ping** and **anonymous crash reports** so we can
 count active users and fix app crashes. These are not optional.
 
+Unofficial builds packaged with telemetry off (such as a personal Monterey build) send no analytics or
+crash reports at all, and Settings hides the analytics switch.
+
 You can also share extra anonymous usage analytics to help us understand how the app is used and catch
 problems. Extra analytics is on by default for new installs. Turn it off any time in
 **Settings → Privacy → Help Make OpenUsage Better**. Existing

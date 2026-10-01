@@ -13,4 +13,25 @@ final class TelemetrySinkTests: XCTestCase {
             "crash autocapture must stay on when optional analytics are disabled"
         )
     }
+
+    func testUnofficialBuildSwitchDisablesTelemetryEvenWithAnOverride() {
+        let disabled = [TelemetryConfig.disabledInfoKey: true]
+        XCTAssertEqual(TelemetryConfig.token(info: disabled, environment: [:]), TelemetryConfig.placeholderToken)
+        XCTAssertEqual(
+            TelemetryConfig.token(info: disabled, environment: ["OPENUSAGE_POSTHOG_TOKEN": "phc_override"]),
+            TelemetryConfig.placeholderToken
+        )
+        XCTAssertFalse(TelemetryConfig.isUsable(TelemetryConfig.token(info: disabled, environment: [:])))
+    }
+
+    func testOfficialBuildsKeepTheBakedTokenAndLocalOverride() {
+        XCTAssertTrue(TelemetryConfig.isUsable(TelemetryConfig.token(info: [:], environment: [:])))
+        XCTAssertTrue(TelemetryConfig.isUsable(TelemetryConfig.token(
+            info: [TelemetryConfig.disabledInfoKey: false], environment: [:]
+        )))
+        XCTAssertEqual(
+            TelemetryConfig.token(info: [:], environment: ["OPENUSAGE_POSTHOG_TOKEN": " phc_override "]),
+            "phc_override"
+        )
+    }
 }

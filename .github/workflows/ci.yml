@@ -17,6 +17,14 @@ on:
         options:
           - development
           - production
+      package:
+        description: 'personal: optimized build for daily use, versioned from the upstream base tag, no telemetry'
+        type: choice
+        required: true
+        default: development
+        options:
+          - development
+          - personal
 
 permissions:
   contents: read
@@ -38,6 +46,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # Personal packages derive their version from the nearest upstream tag and commit count.
+          fetch-depth: ${{ inputs.package != 'personal' && 1 || 0 }}
 
       - name: Check build environment
         id: environment
@@ -67,20 +77,29 @@ jobs:
 
       - name: Stage and verify Monterey-compatible app
         env:
-          CONFIG: debug
+          PACKAGE: ${{ inputs.package || 'development' }}
           CODESIGN_IDENTITY: "-"
           ICLOUD_CONTAINER_ID: ${{ inputs.icloud_history == 'production' && 'iCloud.com.robinebers.openusage' || 'iCloud.com.robinebers.openusage.dev' }}
         run: |
+          if [ "$PACKAGE" = personal ]; then
+            # An unofficial build: label it from the upstream base it carries, never a new release number.
+            base="$(git describe --tags --abbrev=0 --match 'v[0-9]*')"
+            export CONFIG=release TELEMETRY=off
+            export APP_VERSION_LABEL="${base#v}-monterey" APP_BUILD="$(git rev-list --count HEAD)"
+          else
+            export CONFIG=debug
+          fi
           ./script/build_and_run.sh build
           ditto -c -k --keepParent dist/OpenUsage.app dist/OpenUsage-Monterey.zip
 
       - name: Upload compatibility build
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.icloud_history == 'production' && 'OpenUsage-Monterey-production-history' || 'OpenUsage-Monterey' }}
+          name: ${{ format('OpenUsage-Monterey{0}{1}', inputs.package == 'personal' && '-personal' || '', inputs.icloud_history == 'production' && '-production-history' || '') }}
           path: dist/OpenUsage-Monterey.zip
           if-no-files-found: error
-          retention-days: 14
+          # Personal packages are for downloading once and installing, not for sharing.
+          retention-days: ${{ inputs.package == 'personal' && 1 || 14 }}
 
       - name: Upload dependency lockfile
         if: ${{ !cancelled() }}

@@ -102,17 +102,11 @@ struct SettingsScreen: View {
                     .settingsSwitchStyle()
             }
             row("Launch at Login") {
-                if LaunchAtLoginSetting.isSupported {
-                    Toggle("", isOn: Binding(
-                        get: { launchAtLogin.isEnabled },
-                        set: { launchAtLogin.update(to: $0) }
-                    ))
-                    .settingsSwitchStyle()
-                } else {
-                    Text("Requires macOS 13")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Toggle("", isOn: Binding(
+                    get: { launchAtLogin.isEnabled },
+                    set: { launchAtLogin.update(to: $0) }
+                ))
+                .settingsSwitchStyle()
             }
             if let launchAtLoginError = launchAtLogin.errorMessage {
                 inlineNotice(launchAtLoginError)
@@ -222,20 +216,23 @@ struct SettingsScreen: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            row("Help Make OpenUsage Better") {
-                Toggle("", isOn: Binding(
-                    get: { container.telemetry.isEnabled },
-                    set: { container.telemetry.setEnabled($0) }
-                ))
-                .settingsSwitchStyle()
+            // Builds packaged without telemetry send nothing, so a switch there would be a no-op.
+            if TelemetryConfig.isConfigured {
+                row("Help Make OpenUsage Better") {
+                    Toggle("", isOn: Binding(
+                        get: { container.telemetry.isEnabled },
+                        set: { container.telemetry.setEnabled($0) }
+                    ))
+                    .settingsSwitchStyle()
+                }
+                // Daily activity and crash reports are always on; the toggle only gates extra analytics.
+                Text("Share additional anonymous usage stats that tell the team where to improve.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Daily activity and crash reports are always on; the toggle only gates extra analytics.
-            Text("Share additional anonymous usage stats that tell the team where to improve.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

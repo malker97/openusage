@@ -14,9 +14,8 @@ on systems older than macOS 14. Monterey uses AppKit to render menu-bar images a
 Loading and sync status also use a Monterey-safe path so changing activity state cannot trip the
 older system's native progress-control layout checks.
 
-**Launch at Login requires macOS 13 or later.** On Monterey, Settings explains that limitation instead
-of offering a non-working switch. You can add the app manually in **System Preferences → Users &
-Groups → Login Items**. TLS connections to an `https://` proxy require macOS 14; `http://` and
+**Launch at Login** works on Monterey through a per-user launcher instead of the macOS 13 login-item
+registry; the Settings switch behaves the same. TLS connections to an `https://` proxy require macOS 14; `http://` and
 `socks5://` proxies are supported on Monterey (see [Proxy](proxy.md)). Providers and their own coding
 tools may have separate OS requirements.
 
@@ -40,6 +39,20 @@ See [iCloud Sync](icloud-sync.md#development-and-release-setup). The ad-hoc arti
 provisioning profile, so container access and delivery must be verified on the target Mac.
 It is ad-hoc signed rather than notarized; if Gatekeeper blocks your own build, use the system's
 **Open Anyway** action after checking its origin. No security setting needs to be turned off globally.
+
+### Personal Build for Everyday Use
+
+For a copy you keep in Applications, run the workflow with **package → personal** (and
+**icloud_history → production** to sync with Macs running released OpenUsage). This produces the
+**OpenUsage-Monterey-personal-production-history** artifact: an optimized build labeled with the
+upstream version it is based on (for example `0.7.13-beta.3-monterey`), with telemetry switched off
+so it never reports into the official project's analytics. The artifact is kept for one day.
+Download it, then replace `/Applications/OpenUsage.app` with the extracted app. It keeps the same
+settings and iCloud identity as earlier compatibility builds. It doesn't update itself; repeat these
+steps for a newer build.
+
+The OpenUsage name and logo are covered by the [trademark policy](../TRADEMARK.md): keep such builds
+for personal use rather than publishing them.
 
 ## Verification
 

@@ -7,7 +7,7 @@ Settings lives inside the popover — there is no separate window. Open it from 
 | Setting | Options | What it does |
 |---|---|---|
 | Show Total Spend | on/off | Whether the cross-provider [Total Spend](dashboard.md#total-spend) card shows at the top of the dashboard. On by default; the card appears whenever at least one enabled provider tracks spend (Claude, Codex, Cursor, Grok, OpenCode). |
-| Launch at Login | on/off | Requires macOS 13+. Registers the app as a login item (the system's login-item registry is the source of truth). On Monterey, add OpenUsage manually in System Preferences → Users & Groups → Login Items. |
+| Launch at Login | on/off | Starts the app when you log in. On macOS 13+ it registers a system login item (the system's login-item registry is the source of truth). On Monterey it writes a small per-user launcher that opens this copy of the app; if you move the app, turn the switch on again. |
 | Global Shortcut | record a shortcut | Global shortcut that toggles the popover from anywhere. Click the field and press a combo; the ⓧ clears it and disables the shortcut. |
 
 **Upgrading from the legacy (pre-0.7) edition:** the old edition managed start-on-login with its own launcher file, which an in-place update left behind. That leftover could start the app a second time at every login and showed up in System Settings → Login Items under the signing company's name ("SUNSTORY LLC") instead of OpenUsage. The app now removes it automatically on launch — only when the file verifiably points at OpenUsage itself — so login starts exactly one copy, controlled by the Launch at Login toggle above.

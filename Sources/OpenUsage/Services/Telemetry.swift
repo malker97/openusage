@@ -15,11 +15,26 @@ enum TelemetryConfig {
     /// `OPENUSAGE_POSTHOG_TOKEN` at runtime for local testing.
     private static let bakedToken = "phc_vGEqXEpQNwViyKnMNWvmKWpv8XxMT3yaeYi6gfidr4nf"
 
+    /// Info.plist switch for unofficial builds (forks, personal packages): they must never report into
+    /// the official project's analytics. Set by `script/build_and_run.sh` with `TELEMETRY=off`.
+    static let disabledInfoKey = "OpenUsageTelemetryDisabled"
+
     static var token: String {
-        let env = ProcessInfo.processInfo.environment["OPENUSAGE_POSTHOG_TOKEN"]?
+        token(info: Bundle.main.infoDictionary ?? [:], environment: ProcessInfo.processInfo.environment)
+    }
+
+    static var isConfigured: Bool { isUsable(token) }
+
+    static func token(info: [String: Any], environment: [String: String]) -> String {
+        if info[disabledInfoKey] as? Bool == true { return placeholderToken }
+        let env = environment["OPENUSAGE_POSTHOG_TOKEN"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if let env, !env.isEmpty { return env }
         return bakedToken
+    }
+
+    static func isUsable(_ token: String) -> Bool {
+        token.hasPrefix("phc_") && token != placeholderToken
     }
 
     /// US cloud. Switch to "https://eu.i.posthog.com" only with an EU-region project token.
@@ -49,7 +64,7 @@ final class PostHogTelemetrySink: TelemetrySink {
     private let configured: Bool
 
     init(enabled: Bool, token: String = TelemetryConfig.token, host: String = TelemetryConfig.host) {
-        guard token.hasPrefix("phc_"), token != TelemetryConfig.placeholderToken else {
+        guard TelemetryConfig.isUsable(token) else {
             configured = false
             AppLog.info(.config, "telemetry inert: no PostHog project token configured")
             return
