@@ -1,32 +1,40 @@
 # Monterey Compatibility Validation
 
-## Host
+## Build
 
-- macOS 12.6.8, build 21G725, arm64.
-- Apple Swift 5.7.2; command-line tools only, with the macOS 13.1 SDK.
+The complete app builds and tests on GitHub Actions with a Monterey deployment target.
 
-## Passed Locally
+- Source: `2d316008` on `malker97/openusage`.
+- [Successful CI run](https://github.com/malker97/openusage/actions/runs/36812162489).
+- Build host: macOS 26 arm64, Swift 6.3.3, macOS 26.5 SDK.
+- Tests: 1,522 executed, 3 skipped, 0 failures.
+- The app and CLI are arm64; embedded Sparkle code includes both architectures.
+- Info.plist and every shipped Mach-O passed the macOS 12 deployment check.
+- The dependency lockfile was resolved on CI and committed.
 
-A standalone smoke executable compiled the actual `Locked.swift`, `AsyncDelay.swift`, and
-`ViewImageRenderer.swift` sources for macOS 12. Only the app logging seam was stubbed; providers and
-telemetry were not started.
+## Monterey Smoke Test
 
-It verified concurrent locked updates, fractional delay conversion, cancellation of a long delay,
-and off-screen SwiftUI rendering on Monterey. Transparent shapes, Canvas content used by menu-bar
-bars, and text rendered successfully at 2× scale. The executable also ran after stamping its linked
-SDK to 26.0 and re-signing it, while preserving minos 12.0.
+Test host: macOS 12.6.8 (21G725), MacBook Air arm64. The CI artifact was downloaded, extracted, and
+its nested code signatures verified before launching the app bundle.
 
-The packaging checker accepted a fixture with both executables targeting 12.0 and rejected an
-embedded executable targeting 13.0. SDK stamping refused to rewrite a fixture reporting minos 15.0.
-View-source parsing, shell syntax checks, and `git diff --check` passed.
+Passed:
 
-## Still Required
+- App startup and menu-bar rendering; bundled CLI help.
+- Real Claude and Codex refreshes, with dashboard and menu-bar usage displayed.
+- Dashboard and Settings navigation; Monterey's Launch at Login limitation displayed correctly.
+- iCloud activity regression: the original build trapped in SwiftUI's native-control layout checks
+  when sync activity appeared. The fixed build uses a fixed-size Monterey activity path.
+- Sync was disabled/enabled three times on the real Settings screen without another crash; the
+  device list showed this Mac and its update time. Sync was left enabled as it was before the test.
+- Relaunch with sync still enabled; Claude/Codex refreshes succeeded again.
+- Deferred hover bindings no longer emitted the earlier Perception runtime warnings.
 
-These checks are **not** a successful full app build or an end-to-end Monterey app test.
+The earlier standalone smoke checks also passed: locked concurrent updates, fractional delay
+conversion, cancellation, and transparent shape/Canvas/text rendering at 2×. CI forces the legacy
+rendering path, including a real share-card PNG export and finite activity-indicator sizes.
 
-- `swift build` is blocked by the installed Swift 5.7 toolchain; the package needs Swift 6.2.
-- `swift test` is also blocked: this command-line-tools installation reports XCTest unavailable.
-- Dependency resolution and the regenerated `Package.resolved` need the newer build toolchain.
-- The new CI workflow and the full regression suite have not been run from this machine.
-- Build the complete app with Xcode 26, then run the [compatibility smoke checklist](../compatibility.md#verification)
-  on Monterey and on a newer macOS before publishing a release.
+## Remaining Checks
+
+This is a development artifact, not a notarized or universal release. A second Mac is still needed to
+verify actual cross-device history merging. Finish the full [compatibility smoke checklist](../compatibility.md#verification)
+before publishing a release, especially drag/reorder, keyboard shortcut recording, and hover details.

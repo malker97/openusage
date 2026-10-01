@@ -2,8 +2,9 @@
 
 This checkout targets **macOS 12 (Monterey) and later**, including macOS 12.6.8 on Apple Silicon.
 Existing published releases may still require macOS 15; editing their Info.plist does not make them
-compatible. Use a newly built app instead. A full Monterey app smoke test is still required before
-publishing these changes as a release.
+compatible. Use a newly built app instead. The compatibility app has now built on CI and run on
+Monterey; see the [validation record](testing/macos-monterey.md). Finish the full smoke checklist
+before publishing these changes as a release.
 
 ## What Works Differently
 
@@ -32,7 +33,9 @@ changes to your fork's main branch, run **Actions → CI → Run workflow**, the
 successful run. Extract the artifact and its inner zip, move OpenUsage.app to Applications, and open
 it on the older Mac. The artifact is a host-architecture development build, not a universal release.
 
-This development app has separate settings, no automatic updates, and no provisioned iCloud sync.
+This development app has separate settings and no automatic updates. It has no iCloud provisioning
+profile, so iCloud availability depends on the host's existing container access; cross-Mac sync has
+not yet been verified.
 It is ad-hoc signed rather than notarized; if Gatekeeper blocks your own build, use the system's
 **Open Anyway** action after checking its origin. No security setting needs to be turned off globally.
 
