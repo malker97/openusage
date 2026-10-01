@@ -4,11 +4,11 @@
 
 The complete app builds and tests on GitHub Actions with a Monterey deployment target.
 
-- Source: `d0325460` on `malker97/openusage`.
-- [Successful CI run](https://github.com/malker97/openusage/actions/runs/36815457185), manually dispatched
+- Source: `9ecc44b6` on `malker97/openusage`.
+- [Successful CI run](https://github.com/malker97/openusage/actions/runs/36817780962), manually dispatched
   with `icloud_history=production`; artifact: **OpenUsage-Monterey-production-history**.
 - Build host: macOS 26 arm64, Swift 6.3.3, macOS 26.5 SDK.
-- Tests: 1,529 executed, 3 skipped, 0 failures.
+- Tests: 1,534 executed, 3 skipped, 0 failures.
 - The app and CLI are arm64; embedded Sparkle code includes both architectures.
 - Info.plist and every shipped Mach-O passed the macOS 12 deployment check.
 - The dependency lockfile was resolved on CI and committed.
@@ -53,6 +53,25 @@ Verified on Monterey with the real iCloud account:
 
 The other Macs' screens have not been inspected from this machine. Confirm the new Mac appears there
 after iCloud delivery; a local write alone is not an end-to-end receipt acknowledgement.
+
+## Low-Space Failure and Recovery
+
+A later real sync failure was caused by macOS refusing iCloud downloads: Cocoa error 640 reported
+about 2.84 GB available with a 3.22 GB reserve required. The original reader threw on the download
+error before reading valid cached JSON, which removed both peer Macs and reverted combined usage.
+
+The fix separates download failures from invalid history. It retains coordinated, validated cached
+files, shows a low-space/stale-data warning, backs failed download requests off to once a minute,
+and watches only the selected container's history. Corrupt files are still rejected. Regression tests
+cover cached history under metadata/request errors, retry backoff, and recovery/warning removal.
+
+Disk space was subsequently restored to about 20 GiB; no personal files were deleted by the agent.
+After deploying the new artifact, a roughly 11-minute soak sampled the live app 22 times and crossed
+two automatic refresh batches. All samples succeeded with the same process, combined usage remained
+visible, and logs kept three Macs including two peers. Six later peer updates automatically went from
+one pending download to zero. At the final check all three files were current and uploaded, with no
+upload/download error, new crash, or Perception fault. Low-space behavior is covered by injected
+regression tests; the test did not refill the user's disk to reproduce the shortage.
 
 ## Remaining Checks
 
