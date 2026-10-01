@@ -4,11 +4,12 @@
 
 The complete app builds and tests on GitHub Actions with a Monterey deployment target.
 
-- Source: `9ecc44b6` on `malker97/openusage`.
-- [Successful CI run](https://github.com/malker97/openusage/actions/runs/36817780962), manually dispatched
-  with `icloud_history=production`; artifact: **OpenUsage-Monterey-production-history**.
+- Source: `da0abd9a` on `malker97/openusage`.
+- [Successful CI run](https://github.com/malker97/openusage/actions/runs/36822302163), manually dispatched
+  with `package=personal` and `icloud_history=production`; artifact:
+  **OpenUsage-Monterey-personal-production-history**.
 - Build host: macOS 26 arm64, Swift 6.3.3, macOS 26.5 SDK.
-- Tests: 1,534 executed, 3 skipped, 0 failures.
+- Tests: 1,542 executed, 3 skipped, 0 failures.
 - The app and CLI are arm64; embedded Sparkle code includes both architectures.
 - Info.plist and every shipped Mach-O passed the macOS 12 deployment check.
 - The dependency lockfile was resolved on CI and committed.
@@ -72,6 +73,30 @@ visible, and logs kept three Macs including two peers. Six later peer updates au
 one pending download to zero. At the final check all three files were current and uploaded, with no
 upload/download error, new crash, or Perception fault. Low-space behavior is covered by injected
 regression tests; the test did not refill the user's disk to reproduce the shortage.
+
+## Installed Personal Build
+
+The personal package is an optimized build (34 MB, versus 68 MB for the debug artifact) labeled
+`0.7.13-beta.3-monterey`, build 629, with telemetry off and no update feed. It was downloaded with
+the GitHub CLI, so it carries no quarantine flag, then installed as `/Applications/OpenUsage.app`.
+Its nested signatures verified after installation.
+
+Verified on the Monterey host:
+
+- Startup logged the new version, `telemetry inert`, and the dormant updater. Settings hid the
+  analytics switch and showed the new version in the footer.
+- Existing settings and iCloud identity carried over. Sync loaded the same three Macs and kept
+  updating this Mac's existing file, with no duplicate device. No Keychain prompt appeared.
+- Launch at Login is now a working switch on Monterey. Turning it on wrote a per-user launcher that
+  opens `/Applications/OpenUsage.app`. A simulated login (`launchctl bootstrap` after quitting the app)
+  started the installed app, and the switch still read on after relaunch.
+- A 6.5-minute soak crossed an automatic refresh with the same process, combined usage updating,
+  current uploaded iCloud files, and no crash or Perception runtime warning.
+- Earlier extracted test copies were removed so Spotlight and LaunchServices can't open an old
+  debug build; their CI zips were kept.
+
+The Mac's Spotlight index was read-only at the time (likely left over from the earlier low-space
+period), so the new install wasn't searchable yet. Launchpad, Finder, and login launch don't depend on it.
 
 ## Remaining Checks
 
