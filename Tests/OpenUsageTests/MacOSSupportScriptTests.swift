@@ -26,7 +26,18 @@ final class MacOSSupportScriptTests: XCTestCase {
         for path in ["MacOS", "Helpers"] {
             try FileManager.default.createDirectory(at: contents.appendingPathComponent(path), withIntermediateDirectories: true)
         }
-        let executable = try XCTUnwrap(Bundle(for: Self.self).executableURL)
+        // SwiftPM raises the test runner's floor for Swift Testing; it isn't an app fixture.
+        // Compile a tiny real Mach-O at our explicit floor instead of falsifying its metadata.
+        let source = directory.appendingPathComponent("fixture.c")
+        try "int main(void) { return 0; }\n".write(to: source, atomically: true, encoding: .utf8)
+        let executable = directory.appendingPathComponent("fixture")
+        let compiler = Process()
+        compiler.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        compiler.arguments = ["clang", "-mmacosx-version-min=12.0", source.path, "-o", executable.path]
+        try compiler.run()
+        compiler.waitUntilExit()
+        XCTAssertEqual(compiler.terminationStatus, 0)
+        guard compiler.terminationStatus == 0 else { return }
         for path in ["MacOS/OpenUsage", "Helpers/openusage"] {
             try FileManager.default.copyItem(at: executable, to: contents.appendingPathComponent(path))
         }

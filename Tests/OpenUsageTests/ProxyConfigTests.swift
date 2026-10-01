@@ -1,3 +1,5 @@
+import CFNetwork
+import Foundation
 import XCTest
 @testable import OpenUsage
 
@@ -45,8 +47,8 @@ final class ProxyConfigTests: XCTestCase {
         let proxy = ProxyConfig(scheme: .socks5, host: "proxy.example.com", port: 1080, username: "user", password: "pass")
         let dictionary = try proxy.legacyProxyDictionary()
         XCTAssertEqual(dictionary["SOCKSEnable"] as? Int, 1)
-        XCTAssertEqual(dictionary["SOCKSUser"] as? String, "user")
-        XCTAssertEqual(dictionary["SOCKSPassword"] as? String, "pass")
+        XCTAssertEqual(dictionary[kCFStreamPropertySOCKSUser as String] as? String, "user")
+        XCTAssertEqual(dictionary[kCFStreamPropertySOCKSPassword as String] as? String, "pass")
     }
 
     func testLegacyTLSProxyDoesNotFallBackToDirectConnections() {
