@@ -11,6 +11,13 @@ import Perception
 final class HoverPopoverState {
     var isPresented = false
 
+    /// Binding target: closing from outside must clear hover bookkeeping as well as the flag.
+    /// Project this through Perception.Bindable so deferred SwiftUI binding reads stay tracked.
+    var popoverPresented: Bool {
+        get { isPresented }
+        set { if !newValue { dismiss() } }
+    }
+
     /// Every live coordinator, so the menu-bar panel's close path can dismiss any open hover popover —
     /// the dashboard view tree (and this `@State`) survives the panel's `orderOut`, so `.onDisappear`
     /// alone wouldn't fire and the popover could orphan or re-show on the next open.

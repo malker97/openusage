@@ -109,9 +109,11 @@ struct MotionAwareProgressView: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 12, height: 12)
-        } else {
+        } else if #available(macOS 13, *) {
             ProgressView()
                 .controlSize(controlSize)
+        } else {
+            LegacyActivityIndicator(controlSize: controlSize)
         }
     }
 }

@@ -43,6 +43,27 @@ final class MontereyCompatibilityTests: XCTestCase {
         XCTAssertNotNil(NSImage(data: png))
     }
 
+    func testLegacyActivityIndicatorsHaveFiniteFixedLayout() throws {
+        for size in [ControlSize.mini, .small] {
+            let image = try XCTUnwrap(ViewImageRenderer.legacyCGImage(
+                for: LegacyActivityIndicator(controlSize: size), scale: 2
+            ))
+            let expected = size == .mini ? 24 : 32
+            XCTAssertEqual(image.width, expected)
+            XCTAssertEqual(image.height, expected)
+        }
+    }
+
+    func testPopoverBindingDismissalClearsHoverState() {
+        let hover = HoverPopoverState()
+        hover.inlineHover(true)
+        hover.detailHover(true)
+        hover.isPresented = true
+        hover.popoverPresented = false
+        XCTAssertFalse(hover.isPresented)
+        XCTAssertFalse(hover.overInline)
+    }
+
     func testLegacyBarPathKeepsItsBoundsWithAsymmetricEnds() {
         let rect = CGRect(x: 2, y: 3, width: 14, height: 5)
         let path = MenuBarBarGeometry.legacyPath(in: rect, leading: 2, trailing: 0)

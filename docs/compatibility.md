@@ -10,6 +10,8 @@ publishing these changes as a release.
 Usage fetching, menu-bar metrics, customization, notifications, and PNG sharing keep the same code
 paths. State changes use Perception, an Observation backport, so refreshes still update the interface
 on systems older than macOS 14. Monterey uses AppKit to render menu-bar images and share cards.
+Loading and sync status also use a Monterey-safe path so changing activity state cannot trip the
+older system's native progress-control layout checks.
 
 **Launch at Login requires macOS 13 or later.** On Monterey, Settings explains that limitation instead
 of offering a non-working switch. You can add the app manually in **System Preferences → Users &

@@ -300,7 +300,9 @@ struct WidgetRowView: View {
     }
 
     private var unboundedRowContent: some View {
-        HStack(alignment: .center, spacing: 10) {
+        @Perception.Bindable var bindableHover = modelHover
+        let presentation = $bindableHover.popoverPresented
+        return HStack(alignment: .center, spacing: 10) {
             labelColumn
             Spacer(minLength: 12)
             VStack(alignment: .trailing, spacing: 2) {
@@ -359,10 +361,10 @@ struct WidgetRowView: View {
             }
             .motionAwareHoverPopover(
                 isPresented: Binding(
-                    get: { hasHoverPopover && modelHover.isPresented },
+                    get: { hasHoverPopover && presentation.wrappedValue },
                     // A click-outside dismiss removes the detail view without an `.ended` hover event,
                     // so a plain assignment would strand `overDetail == true` and block future hides.
-                    set: { if !$0 { modelHover.dismiss() } }
+                    set: { presentation.wrappedValue = $0 }
                 ),
                 reduceAnimations: reduceAnimations
             ) {

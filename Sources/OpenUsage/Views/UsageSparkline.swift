@@ -31,7 +31,8 @@ struct UsageSparkline: View {
     }
 
     private var trackedBody: some View {
-        HStack(spacing: 8) {
+        @Perception.Bindable var bindableHover = hover
+        return HStack(spacing: 8) {
             Text(data.title)
                 .font(.system(size: density.supportingPointSize, weight: .semibold))
                 .foregroundStyle(.primary)
@@ -58,7 +59,7 @@ struct UsageSparkline: View {
                 // hover event, so a plain assignment would strand `overDetail == true` and block
                 // future hides — reset the whole hover state instead.
                 .motionAwareHoverPopover(
-                    isPresented: Binding(get: { hover.isPresented }, set: { if !$0 { hover.dismiss() } }),
+                    isPresented: $bindableHover.popoverPresented,
                     reduceAnimations: reduceAnimations
                 ) {
                     UsageTrendDetail(title: data.title, points: points, note: data.chartNote) { inside in
