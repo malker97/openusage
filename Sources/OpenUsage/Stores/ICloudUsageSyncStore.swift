@@ -4,6 +4,7 @@ import Perception
 struct UsageHistoryLoadResult: Sendable {
     var documents: [UsageHistoryDocument]
     var invalidFileMessages: [String]
+    var pendingDownloadCount: Int = 0
 }
 
 protocol UsageHistoryFileStoring: Sendable {
@@ -40,110 +41,18 @@ struct KeychainICloudDeviceIDStore: ICloudDeviceIDStoring {
 
 enum ICloudUsageSyncError: Error, LocalizedError {
     case unavailable
+    case misconfigured
+    case monitoringUnavailable
 
     var errorDescription: String? {
-        "iCloud Drive isn’t available. Check that this Mac is signed into iCloud and iCloud Drive is on."
-    }
-}
-
-/// Coordinated access to the app-private data area of OpenUsage's iCloud Documents container.
-actor ICloudUsageHistoryFileStore: UsageHistoryFileStoring {
-    private let encoder: JSONEncoder
-    private let decoder: JSONDecoder
-
-    init() {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        self.encoder = encoder
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        self.decoder = decoder
-    }
-
-    func loadDocuments() async throws -> UsageHistoryLoadResult {
-        let directory = try historyDirectory(create: false)
-        guard FileManager.default.fileExists(atPath: directory.path) else {
-            return UsageHistoryLoadResult(documents: [], invalidFileMessages: [])
+        switch self {
+        case .unavailable:
+            "iCloud Drive isn’t available. Check that this Mac is signed into iCloud and iCloud Drive is on."
+        case .misconfigured:
+            "This build has no unambiguous iCloud history container. Reinstall OpenUsage."
+        case .monitoringUnavailable:
+            "OpenUsage couldn’t watch iCloud changes. Restart the app and check the log."
         }
-
-        let urls = try FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ).filter { $0.pathExtension == "json" }
-
-        var documents: [UsageHistoryDocument] = []
-        var errors: [String] = []
-        for url in urls {
-            do {
-                let data = try coordinatedRead(url)
-                let document = try decoder.decode(UsageHistoryDocument.self, from: data)
-                try document.validate()
-                documents.append(document)
-            } catch {
-                errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
-                AppLog.warn(.config, "iCloud history ignored \(url.lastPathComponent): \(error.localizedDescription)")
-            }
-        }
-        return UsageHistoryLoadResult(documents: documents, invalidFileMessages: errors)
-    }
-
-    func write(_ document: UsageHistoryDocument) async throws {
-        try document.validate()
-        let directory = try historyDirectory(create: true)
-        let url = directory.appendingPathComponent(document.deviceID).appendingPathExtension("json")
-        let data = try encoder.encode(document)
-        try coordinatedWrite(data, to: url)
-    }
-
-    func delete(deviceID: String) async throws {
-        let directory = try historyDirectory(create: false)
-        let url = directory.appendingPathComponent(deviceID).appendingPathExtension("json")
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
-        var coordinationError: NSError?
-        var operationError: Error?
-        NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: &coordinationError) { coordinatedURL in
-            do { try FileManager.default.removeItem(at: coordinatedURL) }
-            catch { operationError = error }
-        }
-        if let coordinationError { throw coordinationError }
-        if let operationError { throw operationError }
-    }
-
-    private func historyDirectory(create: Bool) throws -> URL {
-        guard let container = FileManager.default.url(forUbiquityContainerIdentifier: nil) else {
-            throw ICloudUsageSyncError.unavailable
-        }
-        let directory = container
-            .appendingPathComponent("OpenUsage", isDirectory: true)
-            .appendingPathComponent("History", isDirectory: true)
-            .appendingPathComponent("v1", isDirectory: true)
-        if create {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        }
-        return directory
-    }
-
-    private func coordinatedRead(_ url: URL) throws -> Data {
-        var coordinationError: NSError?
-        var result: Result<Data, Error>?
-        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { coordinatedURL in
-            result = Result { try Data(contentsOf: coordinatedURL) }
-        }
-        if let coordinationError { throw coordinationError }
-        return try result?.get() ?? { throw CocoaError(.fileReadUnknown) }()
-    }
-
-    private func coordinatedWrite(_ data: Data, to url: URL) throws {
-        var coordinationError: NSError?
-        var operationError: Error?
-        NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { coordinatedURL in
-            do { try data.write(to: coordinatedURL, options: .atomic) }
-            catch { operationError = error }
-        }
-        if let coordinationError { throw coordinationError }
-        if let operationError { throw operationError }
     }
 }
 
@@ -160,6 +69,7 @@ final class ICloudUsageSyncStore {
     private let writeDebounce: DelayDuration
     private let observesMetadataChanges: Bool
     private var writeTask: Task<Void, Never>?
+    private var downloadReloadTask: Task<Void, Never>?
     private var metadataQuery: NSMetadataQuery?
     private var notificationTokens: [NSObjectProtocol] = []
     private var syncActivityCount = 0
@@ -174,8 +84,13 @@ final class ICloudUsageSyncStore {
         }
     }
     private(set) var isSyncing = false
+    private(set) var pendingDownloadCount = 0
+    let usesDevelopmentContainer = (try? ICloudUsageHistoryFileStore.containerIdentifier(
+        in: Bundle.main.infoDictionary ?? [:]
+    )) == "iCloud.com.robinebers.openusage.dev"
     private var operationError: String?
-    var serviceError: String? { operationError ?? identityError }
+    private var metadataError: String?
+    var serviceError: String? { operationError ?? metadataError ?? identityError }
     private(set) var invalidFileMessages: [String] = []
     private(set) var documents: [UsageHistoryDocument] = []
 
@@ -229,6 +144,9 @@ final class ICloudUsageSyncStore {
             await writeNow()
         } else {
             writeTask?.cancel()
+            downloadReloadTask?.cancel()
+            downloadReloadTask = nil
+            pendingDownloadCount = 0
             stopObserving()
             dataStore.clearPeerHistoryDocuments()
             documents = []
@@ -272,7 +190,14 @@ final class ICloudUsageSyncStore {
                 let result = try await fileStore.loadDocuments()
                 // A read that began while enabled must not restore peer state after sync was disabled.
                 guard enabled else { return }
-                documents = UsageHistoryDocument.newestByDevice(result.documents)
+                let newest = UsageHistoryDocument.newestByDevice(result.documents)
+                if Set(documents) != Set(newest) || pendingDownloadCount != result.pendingDownloadCount {
+                    let peers = newest.filter { $0.deviceID != deviceID }.count
+                    AppLog.info(.config, "iCloud history loaded \(newest.count) Macs (\(peers) peers, \(result.pendingDownloadCount) pending downloads)")
+                }
+                documents = newest
+                pendingDownloadCount = result.pendingDownloadCount
+                scheduleDownloadReload()
                 invalidFileMessages = result.invalidFileMessages
                 dataStore.setPeerHistoryDocuments(result.documents, ownDeviceID: deviceID)
                 operationError = result.invalidFileMessages.isEmpty
@@ -281,6 +206,25 @@ final class ICloudUsageSyncStore {
             } catch {
                 report(error, context: "read")
             }
+        }
+    }
+
+    private func scheduleDownloadReload() {
+        guard pendingDownloadCount > 0 else {
+            downloadReloadTask?.cancel()
+            downloadReloadTask = nil
+            return
+        }
+        guard downloadReloadTask == nil else { return }
+        // Metadata notifications are the primary signal. Retry while downloads are outstanding too,
+        // so an initial download cannot depend on receiving a particular query notification.
+        downloadReloadTask = Task { [weak self] in
+            do { try await AsyncDelay.sleep(for: .seconds(5)) }
+            catch { return }
+            guard let self else { return }
+            self.downloadReloadTask = nil
+            guard self.enabled else { return }
+            await self.reload()
         }
     }
 
@@ -331,7 +275,8 @@ final class ICloudUsageSyncStore {
         guard observesMetadataChanges else { return }
         guard metadataQuery == nil else { return }
         let query = NSMetadataQuery()
-        query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
+        // History is app-private data, outside the container's Documents directory.
+        query.searchScopes = [NSMetadataQueryUbiquitousDataScope, NSMetadataQueryUbiquitousDocumentsScope]
         query.predicate = NSPredicate(format: "%K LIKE '*.json'", NSMetadataItemFSNameKey)
         let center = NotificationCenter.default
         notificationTokens = [
@@ -347,7 +292,14 @@ final class ICloudUsageSyncStore {
             }
         ]
         metadataQuery = query
-        query.start()
+        if !query.start() {
+            stopObserving()
+            let message = ICloudUsageSyncError.monitoringUnavailable.localizedDescription
+            metadataError = message
+            AppLog.warn(.config, "iCloud history monitoring failed: \(message)")
+        } else {
+            metadataError = nil
+        }
     }
 
     private func stopObserving() {

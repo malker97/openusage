@@ -33,9 +33,11 @@ changes to your fork's main branch, run **Actions → CI → Run workflow**, the
 successful run. Extract the artifact and its inner zip, move OpenUsage.app to Applications, and open
 it on the older Mac. The artifact is a host-architecture development build, not a universal release.
 
-This development app has separate settings and no automatic updates. It has no iCloud provisioning
-profile, so iCloud availability depends on the host's existing container access; cross-Mac sync has
-not yet been verified.
+This development app has separate settings and no automatic updates. Its default development iCloud
+container is also separate from released apps. To join those Macs, explicitly select **production**
+for **icloud_history** when running the workflow, then download **OpenUsage-Monterey-production-history**.
+See [iCloud Sync](icloud-sync.md#development-and-release-setup). The ad-hoc artifact has no iCloud
+provisioning profile, so container access and delivery must be verified on the target Mac.
 It is ad-hoc signed rather than notarized; if Gatekeeper blocks your own build, use the system's
 **Open Anyway** action after checking its origin. No security setting needs to be turned off globally.
 

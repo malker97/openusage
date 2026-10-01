@@ -57,9 +57,20 @@ struct ICloudSyncSettingsSection: View {
     @ViewBuilder
     private var enabledContent: some View {
         Divider()
+        if sync.usesDevelopmentContainer {
+            inlineNotice("This development build uses separate iCloud history. Macs running released OpenUsage won’t appear here.")
+        }
         if let error = sync.serviceError { inlineNotice(error) }
+        if sync.pendingDownloadCount > 0 {
+            Text("Waiting for iCloud to download \(sync.pendingDownloadCount) Mac updates…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
 
-        if sync.displayedDocuments.isEmpty, !sync.isSyncing, sync.serviceError == nil {
+        if sync.displayedDocuments.isEmpty, !sync.isSyncing, sync.pendingDownloadCount == 0, sync.serviceError == nil {
             Text("Waiting for this Mac’s first iCloud update…")
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -31,6 +31,7 @@ esac
 
 /bin/cp "$TEMPLATE" "$OUTPUT"
 /usr/libexec/PlistBuddy \
+  -c "Set :com.apple.developer.icloud-container-identifiers:0 $CONTAINER_ID" \
   -c "Set :com.apple.developer.ubiquity-container-identifiers:0 $UBIQUITY_ID" "$OUTPUT"
 
 # Xcode normally injects these identity entitlements while signing. This repository signs the

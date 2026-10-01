@@ -34,7 +34,10 @@ calendar window used by the local history scanners.
 
 This Mac updates its file after a five-minute refresh batch, a manual refresh, or a provider enablement
 change. iCloud delivery is eventually consistent, so another Mac can take longer than five minutes to
-receive it, especially while offline. Downloaded changes reload immediately when macOS reports them.
+receive it, especially while offline. OpenUsage requests downloads for remote-only history files,
+watches both private iCloud data and Documents, and retries outstanding downloads every five seconds.
+Settings shows when Mac updates are still waiting to download. A cached older file can remain visible
+until its newer version arrives.
 
 Settings lists each valid device file with the time that Mac generated it. To remove a Mac from the
 combined summary, turn sync off on that Mac; this deletes its file from iCloud. Turning sync off also
@@ -43,11 +46,29 @@ Malformed files are ignored and reported in Settings and the app log.
 
 ## Development and release setup
 
-Apple requires the iCloud container assignment to be present in the provisioning profile embedded in
-the app. OpenUsage uses separate resources so development builds cannot write production history:
+Signed distribution builds use an embedded provisioning profile with the matching iCloud container
+assignment. Development builds use isolated history by default:
 
-- `com.robinebers.openusage.dev` uses `iCloud.com.robinebers.openusage.dev`.
-- `com.robinebers.openusage` uses `iCloud.com.robinebers.openusage`.
+- `com.robinebers.openusage.dev` normally uses `iCloud.com.robinebers.openusage.dev`.
+- Released `com.robinebers.openusage` uses `iCloud.com.robinebers.openusage`.
+
+Macs using different containers cannot see each other, even on the same iCloud account. Settings
+warns when this build is using the development container.
+
+To explicitly join Macs running the released app while building the Monterey compatibility app, set
+**Actions → CI → Run workflow → icloud_history → production**. Download the
+**OpenUsage-Monterey-production-history** artifact. The build keeps separate development settings
+and no automatic updates, but reads and writes the released app's history container. The equivalent
+local build is:
+
+```bash
+ICLOUD_CONTAINER_ID=iCloud.com.robinebers.openusage ./script/build_and_run.sh
+```
+
+This is an explicit opt-in, not an automatic fallback. Ad-hoc builds have no provisioning profile;
+container access can work with existing iCloud access on Monterey, but must be verified on the target
+Mac. Do not treat a local write or a device row as proof of cloud delivery. Verify the other Mac's
+records appear and that macOS reports this Mac's file as uploaded.
 
 Create a `MAC_APP_DEVELOPMENT` profile that includes every registered development Mac and a
 `MAC_APP_DIRECT` profile for releases. Install the development profile on each included Mac. The
@@ -82,6 +103,8 @@ else
 fi
 ```
 
-No file is expected when sync is off, the app is signed without the matching profile, or the first
-write has not completed. The Settings error and app log distinguish those cases; the spinner only
-appears while an iCloud read or write is actually in progress.
+No file is expected when sync is off, the container is inaccessible, or the first write has not
+completed. Remote-only files may instead appear as hidden `.json.icloud` placeholders until they
+are downloaded. The app requests those downloads instead of silently omitting the Mac. Settings
+reports download waits and read/write failures; the log identifies the actual container and the
+number of peer histories loaded. The spinner only appears during an actual read or write.

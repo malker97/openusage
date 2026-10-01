@@ -8,6 +8,15 @@ on:
     branches: [main]
 
   workflow_dispatch:
+    inputs:
+      icloud_history:
+        description: 'History container: production joins Macs running released OpenUsage (explicit opt-in)'
+        type: choice
+        required: true
+        default: development
+        options:
+          - development
+          - production
 
 permissions:
   contents: read
@@ -60,6 +69,7 @@ jobs:
         env:
           CONFIG: debug
           CODESIGN_IDENTITY: "-"
+          ICLOUD_CONTAINER_ID: ${{ inputs.icloud_history == 'production' && 'iCloud.com.robinebers.openusage' || 'iCloud.com.robinebers.openusage.dev' }}
         run: |
           ./script/build_and_run.sh build
           ditto -c -k --keepParent dist/OpenUsage.app dist/OpenUsage-Monterey.zip
@@ -67,7 +77,7 @@ jobs:
       - name: Upload compatibility build
         uses: actions/upload-artifact@v4
         with:
-          name: OpenUsage-Monterey
+          name: ${{ inputs.icloud_history == 'production' && 'OpenUsage-Monterey-production-history' || 'OpenUsage-Monterey' }}
           path: dist/OpenUsage-Monterey.zip
           if-no-files-found: error
           retention-days: 14
