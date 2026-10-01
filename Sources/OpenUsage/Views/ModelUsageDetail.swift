@@ -28,14 +28,7 @@ struct ModelUsageDetail: View {
         }
         .padding(14)
         .frame(width: Self.width)
-        .onContinuousHover { phase in
-            switch phase {
-            case .active:
-                onHoverChange(true)
-            case .ended:
-                onHoverChange(false)
-            }
-        }
+        .onHover(perform: onHoverChange)
     }
 
     private var header: some View {

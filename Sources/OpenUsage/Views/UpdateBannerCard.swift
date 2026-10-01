@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The "Update Available" banner at the top of the dashboard. Shows while a *scheduled* Sparkle check
 /// has found a new version (`UpdaterController.availableUpdateVersion`): for a menu-bar (dockless)
@@ -14,6 +15,10 @@ struct UpdateBannerCard: View {
     let version: String
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         DismissableHintCard(
             systemImage: "arrow.down.circle",
             title: "Update Available",

@@ -338,7 +338,7 @@ actor IncrementalJSONLScanner<Item: Codable & Sendable> {
         writeTasks[identity] = Task { [weak self] in
             guard let self else { return }
             do {
-                try await Task.sleep(for: persistence.writeDebounce)
+                try await AsyncDelay.sleep(for: persistence.writeDebounce)
             } catch {
                 await self.finishWriteTask(identity: identity, generation: generation)
                 return

@@ -29,12 +29,10 @@ struct UsageTrendDetail: View {
         .frame(width: Self.width)
         // A refresh can replace `points` while the popover is open; drop the selection so the highlight
         // and readout never point at a day that shifted out from under the cursor.
-        .onChange(of: points) { activeIndex = nil }
-        .onContinuousHover { phase in
-            switch phase {
-            case .active: onHoverChange(true)
-            case .ended: onHoverChange(false); activeIndex = nil
-            }
+        .onChange(of: points) { _ in activeIndex = nil }
+        .onHover { inside in
+            onHoverChange(inside)
+            if !inside { activeIndex = nil }
         }
     }
 
@@ -68,15 +66,15 @@ struct UsageTrendDetail: View {
                             .opacity(activeIndex == nil || activeIndex == index ? 1 : 0.35)
                     }
                     .contentShape(Rectangle())
-                    .onContinuousHover { phase in
-                        if case .active = phase { activeIndex = index }
+                    .onHover { inside in
+                        if inside { activeIndex = index }
                     }
             }
         }
         .frame(height: Self.chartHeight)
         // Clear the selection when the cursor leaves the bars for the header/axis/note (still inside the
         // popover), so the readout falls back to the peak instead of freezing on the last bar.
-        .onContinuousHover { phase in if case .ended = phase { activeIndex = nil } }
+        .onHover { inside in if !inside { activeIndex = nil } }
         .animation(.easeOut(duration: 0.12), value: activeIndex)
     }
 

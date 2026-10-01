@@ -1,10 +1,15 @@
 import SwiftUI
+import Perception
 
 struct ICloudSyncSettingsSection: View {
-    @Bindable var sync: ICloudUsageSyncStore
+    @Perception.Bindable var sync: ICloudUsageSyncStore
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
             HStack(spacing: 5) {
                 Text("iCloud Sync")
@@ -63,7 +68,9 @@ struct ICloudSyncSettingsSection: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             ForEach(sync.displayedDocuments) { document in
-                deviceRow(document, isThisMac: document.deviceID == sync.deviceID)
+                WithPerceptionTracking {
+                    deviceRow(document, isThisMac: document.deviceID == sync.deviceID)
+                }
             }
         }
     }
@@ -84,7 +91,7 @@ struct ICloudSyncSettingsSection: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
-                            .background(.secondary.opacity(0.12), in: Capsule())
+                            .background(Color.secondary.opacity(0.12), in: Capsule())
                             .fixedSize()
                     }
                 }

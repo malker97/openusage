@@ -319,12 +319,12 @@ final class CursorSpendProviderTests: XCTestCase {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let csv = "Date,Model,Cost\n"
         let accessToken = makeCursorJWT(sub: "google-oauth2|user_abc123")
-        let csvCancelled = OSAllocatedUnfairLock(initialState: false)
+        let csvCancelled = Locked(initialState: false)
         let http = RoutingHTTPClient { request in
             let url = request.url.absoluteString
             if url.contains("export-usage-events-csv") {
                 do {
-                    try await Task.sleep(for: .seconds(30))
+                    try await AsyncDelay.sleep(for: .seconds(30))
                 } catch {
                     csvCancelled.withLock { $0 = true }
                     throw error
@@ -359,10 +359,9 @@ final class CursorSpendProviderTests: XCTestCase {
             usageCSVTimeout: 0.05
         )
 
-        let clock = ContinuousClock()
-        let started = clock.now
+        let started = DispatchTime.now().uptimeNanoseconds
         let snapshot = await provider.refresh()
-        let elapsed = started.duration(to: clock.now)
+        let elapsed = DispatchTime.now().uptimeNanoseconds - started
 
         XCTAssertTrue(http.requests.contains { $0.url.absoluteString.contains("export-usage-events-csv") })
         XCTAssertTrue(snapshot.lines.contains { $0.label == "Total usage" })
@@ -370,7 +369,7 @@ final class CursorSpendProviderTests: XCTestCase {
             XCTAssertFalse(snapshot.lines.contains { $0.label == label }, "\(label) line must be absent")
         }
         XCTAssertNil(snapshot.usageHistory)
-        XCTAssertLessThan(elapsed, .seconds(5))
+        XCTAssertLessThan(elapsed, DelayDuration.seconds(5).nanoseconds)
         XCTAssertTrue(csvCancelled.withLock { $0 }, "the in-flight CSV request must be cancelled")
     }
 

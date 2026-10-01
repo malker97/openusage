@@ -54,7 +54,20 @@ enum Theme {
     /// in light, a step lighter than the page in dark). No hand-tuned values; it tracks light/dark and
     /// Increase Contrast. Composited over the opaque page in `cardSurface`, so the card is opaque (a
     /// lifted drag preview stays solid while it floats).
-    static let cardFill = AnyShapeStyle(.fill.quaternary)
+    static var cardFill: AnyShapeStyle {
+        if #available(macOS 14, *) { return AnyShapeStyle(.fill.quaternary) }
+        return AnyShapeStyle(Color(nsColor: .quaternaryLabelColor))
+    }
+
+    static var subtleFill: AnyShapeStyle {
+        if #available(macOS 14, *) { return AnyShapeStyle(.quinary) }
+        return AnyShapeStyle(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+    }
+
+    static var subtleBackgroundFill: AnyShapeStyle {
+        if #available(macOS 14, *) { return AnyShapeStyle(.fill.quinary) }
+        return subtleFill
+    }
 
     /// The single corner radius for every metric/settings card surface and its lifted twin, so the
     /// floating drag preview always matches the live card's shape.

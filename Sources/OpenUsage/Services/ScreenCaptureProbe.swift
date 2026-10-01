@@ -42,7 +42,7 @@ enum ScreenCaptureProbe {
 
     /// The installed change handler. The window server invokes the notification callback on its own
     /// thread, so the box is lock-protected rather than actor-bound.
-    private static let changeHandler = OSAllocatedUnfairLock<(@Sendable () -> Void)?>(initialState: nil)
+    private static let changeHandler = Locked<(@Sendable () -> Void)?>(initialState: nil)
 
     /// Registration is once per process — the window server offers no unregister.
     @MainActor private static var didInstall = false

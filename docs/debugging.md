@@ -5,7 +5,10 @@ chasing a startup or refresh problem.
 
 ## Run a local build
 
-The project script owns the build/run loop. From the repo root:
+The project script owns the build/run loop. Building needs Swift 6.2+ and the macOS 26 SDK; running
+the resulting app targets macOS 12+. On a Monterey Mac with older command-line tools, use a build
+from a newer Mac or CI instead of upgrading the OS — see [macOS compatibility](compatibility.md).
+From the repo root:
 
 ```sh
 ./script/build_and_run.sh          # build and launch the dev app from dist/

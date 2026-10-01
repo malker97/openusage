@@ -146,10 +146,10 @@ final class JSONLScannerCancellationTests: XCTestCase {
     private func waitUntil(
         _ condition: @escaping @Sendable () async -> Bool
     ) async -> Bool {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while ContinuousClock.now < deadline {
+        let deadline = DispatchTime.now().uptimeNanoseconds + DelayDuration.seconds(2).nanoseconds
+        while DispatchTime.now().uptimeNanoseconds < deadline {
             if await condition() { return true }
-            try? await Task.sleep(for: .milliseconds(1))
+            try? await AsyncDelay.sleep(for: .milliseconds(1))
         }
         return await condition()
     }

@@ -52,7 +52,7 @@ body:
     id: macos
     attributes:
       label: macOS Version
-      description: OpenUsage requires macOS 15 (Sequoia) or later.
+      description: Builds from this checkout target macOS 12 (Monterey) or later. Older published releases may still require macOS 15.
       placeholder: "e.g. 15.5"
     validations:
       required: true

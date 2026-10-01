@@ -5,6 +5,21 @@ enum Motion {
     static let spring = Animation.spring(response: 0.42, dampingFraction: 0.80)
     static let modeSwitch = Animation.easeInOut(duration: 0.18)
 
+    /// Native completion on macOS 14+, next-layout settlement on Monterey. Later measurements
+    /// still retarget the same spring through DashboardView's height observer.
+    @MainActor
+    static func animateScreenSwitch(
+        _ updates: () -> Void,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        if #available(macOS 14, *) {
+            withAnimation(spring, completionCriteria: .logicallyComplete, updates, completion: completion)
+        } else {
+            withAnimation(spring, updates)
+            DispatchQueue.main.async { completion() }
+        }
+    }
+
     /// The single transaction policy behind Reduce Animations. `disablesAnimations` prevents inner
     /// `.animation` modifiers from restoring motion after this root policy clears an explicit animation.
     static func applyReduction(to transaction: inout Transaction, enabled: Bool) {
@@ -128,7 +143,7 @@ private struct DenyShakeModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .modifier(DenyShakeEffect(phase: phase))
-            .onChange(of: trigger) { shake() }
+            .onChange(of: trigger) { _ in shake() }
             .onAppear {
                 if shakeOnAppear, trigger > 0 { shake() }
             }

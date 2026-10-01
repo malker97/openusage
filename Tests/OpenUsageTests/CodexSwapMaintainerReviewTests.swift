@@ -215,8 +215,8 @@ final class CodexSwapMaintainerReviewTests: XCTestCase {
 
 private final class BackgroundCheckingKeychain: KeychainAccessing, Sendable {
     private struct State { var value: String; var reads = 0; var writes = 0; var readOnMainThread = false }
-    private let state: OSAllocatedUnfairLock<State>
-    init(_ value: String) { state = OSAllocatedUnfairLock(initialState: State(value: value)) }
+    private let state: Locked<State>
+    init(_ value: String) { state = Locked(initialState: State(value: value)) }
     func replaceExternally(with value: String) { state.withLock { $0.value = value } }
     var reads: Int { state.withLock { $0.reads } }
     var writes: Int { state.withLock { $0.writes } }

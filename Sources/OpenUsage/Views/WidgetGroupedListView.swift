@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The dashboard display: one inset group per provider (System Settings style). A provider's icon + name
 /// sits above a rounded container holding its metric rows, so heterogeneous metric sets read as belonging
@@ -25,11 +26,15 @@ struct WidgetGroupedListView: View {
     @Environment(\.codexResetClaims) private var codexResetClaims
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         // Provider-section spacing is noticeably wider than the in-card row rhythm (so groups
         // still read as groups); the exact step comes from the density setting.
         VStack(alignment: .leading, spacing: density.sectionSpacing) {
             ForEach(layout.displayGroups) { group in
-                section(group)
+                WithPerceptionTracking { section(group) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,7 +244,9 @@ struct WidgetGroupedListView: View {
             .contentShape(Rectangle())
             .opacity(activeMetricID == descriptor.id ? 0 : 1)
             .highPriorityGesture(metricDragGesture(for: descriptor, providerID: providerID))
-            .contextMenu { rowMenu(descriptor, providerID: providerID) }
+            .contextMenu {
+                WithPerceptionTracking { rowMenu(descriptor, providerID: providerID) }
+            }
             .reorderFrame(id: descriptor.id, in: .named(reorderSpaceName))
     }
 

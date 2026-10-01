@@ -1,5 +1,5 @@
 import AppKit
-import Observation
+import Perception
 
 /// Single source of truth for the popover's transparency: the persisted "Increase Transparency"
 /// preference, the ephemeral secret-code easter-egg state, and the live macOS accessibility flags that
@@ -7,7 +7,7 @@ import Observation
 /// (`StatusItemController`, via `effectiveStyle`) read this one store, so the SwiftUI surface and the
 /// window can't drift apart.
 @MainActor
-@Observable
+@Perceptible
 final class PopoverTransparencyStore {
     static let key = "increaseTransparency"
 
@@ -42,8 +42,8 @@ final class PopoverTransparencyStore {
     private(set) var reduceTransparency: Bool
     private(set) var increaseContrast: Bool
 
-    @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private var accessibilityObservation: Task<Void, Never>?
+    @PerceptionIgnored private let defaults: UserDefaults
+    @PerceptionIgnored private var accessibilityObservation: Task<Void, Never>?
 
     init(
         defaults: UserDefaults = .standard,

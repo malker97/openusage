@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The Customize provider list (L1): every known provider as a row, in the user's saved order —
 /// including disabled ones (greyed), so the user can re-enable them or open their detail. Each row
@@ -18,10 +19,14 @@ struct CustomizeProviderListView: View {
     private var orderedRows: [ProviderRow] { layout.customizeProviderRows }
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         VStack(alignment: .leading, spacing: density.sectionSpacing) {
             VStack(spacing: 0) {
                 ForEach(orderedRows) { row in
-                    providerRow(row)
+                    WithPerceptionTracking { providerRow(row) }
                 }
             }
             .cardSurface()

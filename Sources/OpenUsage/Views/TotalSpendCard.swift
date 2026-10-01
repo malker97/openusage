@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// The dashboard's cross-provider Total Spend section: a native segmented period picker
 /// (Today / Yesterday / Last 30 Days) over a donut ring whose segments are each provider's share of
@@ -44,6 +45,10 @@ struct TotalSpendCard: View {
     }
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
             header
             card
@@ -159,7 +164,7 @@ struct TotalSpendCard: View {
             }
         }
         .padding(3)
-        .background(.quinary, in: Capsule())
+        .background(Theme.subtleFill, in: Capsule())
         .frame(maxWidth: .infinity)
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Fixed popover footer chrome: app identity, refresh status, dashboard actions, and copy confirmation.
 /// It uses the destination screen so both pages mounted during a slide draw the same footer.
@@ -11,6 +12,10 @@ struct PopoverFooter: View {
 
     @ViewBuilder
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         Group {
             if screen == .customize {
                 EmptyView()
@@ -26,17 +31,27 @@ struct PopoverFooter: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
         .barGlass()
-        .onGeometryChange(for: CGFloat.self) { proxy in proxy.size.height } action: { height in
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: FooterHeightKey.self, value: proxy.size.height)
+        })
+        .onPreferenceChange(FooterHeightKey.self) { height in
             onHeightChange(screen, height)
         }
         .overlay(alignment: .top) {
-            if screen == .dashboard, layout.shareConfirmation {
-                shareCopiedPill
-                    .offset(y: -34)
+            WithPerceptionTracking {
+                if screen == .dashboard, layout.shareConfirmation {
+                    shareCopiedPill
+                        .offset(y: -34)
+                }
             }
         }
         .animation(Motion.spring, value: layout.shareConfirmation)
         .animation(Motion.spring, value: layout.shareConfirmationTrigger)
+    }
+
+    private struct FooterHeightKey: PreferenceKey {
+        static let defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
     }
 
     private var shareCopiedPill: some View {
@@ -69,12 +84,14 @@ struct PopoverFooter: View {
             refreshNow()
         } label: {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                HStack(spacing: 5) {
-                    Text(updateStatusText(now: context.date))
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                    if isUpdating {
-                        MotionAwareProgressView(controlSize: .mini)
+                WithPerceptionTracking {
+                    HStack(spacing: 5) {
+                        Text(updateStatusText(now: context.date))
+                            .monospacedDigit()
+                            .numericTextTransition()
+                        if isUpdating {
+                            MotionAwareProgressView(controlSize: .mini)
+                        }
                     }
                 }
             }

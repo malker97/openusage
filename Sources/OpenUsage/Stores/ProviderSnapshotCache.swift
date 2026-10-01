@@ -17,14 +17,14 @@ struct ProviderSnapshotCache {
     /// MainActor. The blob is decoded at most once per cache instance (first access); writes update the
     /// mirror and persist through. Lock-backed so the value-type cache memoizes across calls and stays
     /// safe to share.
-    private let memo = OSAllocatedUnfairLock<Payload?>(initialState: nil)
+    private let memo = Locked<Payload?>(initialState: nil)
 
     /// Provider IDs whose snapshot was written by `store` *during this cache instance's lifetime* (i.e.
     /// this running session). The freshness gate (`snapshot(providerID:)`) trusts a snapshot only when
     /// its provider is in here — so a snapshot loaded from disk on launch is shown (via `loadSnapshots`)
     /// but never counts as fresh, forcing one refresh on the first post-launch pass. Lock-backed for the
     /// same reason as `memo`: the value-type cache shares it across copies and stays safe. See #697.
-    private let sessionWrites = OSAllocatedUnfairLock<Set<String>>(initialState: [])
+    private let sessionWrites = Locked<Set<String>>(initialState: [])
 
     private let userDefaults: UserDefaults
     private let storageKey: String

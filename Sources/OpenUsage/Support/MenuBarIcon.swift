@@ -14,16 +14,12 @@ enum MenuBarIcon {
 
     private static func render() -> NSImage? {
         guard let mark = ProviderMarks.mark(for: "openusage") else { return nil }
-        let renderer = ImageRenderer(
-            // Smaller inset than the provider default so the brand gauge keeps its prior menu-bar size
-            // (its art already carries ~8% margin inside the source viewBox).
-            content: ProviderIconShape(mark: mark, inset: 0.08)
-                .fill(Color.black)
-                .frame(width: side, height: side)
-        )
-        renderer.scale = 2
-        guard let nsImage = renderer.nsImage else { return nil }
-        nsImage.size = NSSize(width: side, height: side)
+        // The art already carries ~8% margin inside the source viewBox.
+        let content = ProviderIconShape(mark: mark, inset: 0.08)
+            .fill(Color.black)
+            .frame(width: side, height: side)
+        guard let cgImage = ViewImageRenderer.cgImage(for: content, scale: 2) else { return nil }
+        let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: side, height: side))
         nsImage.isTemplate = true
         return nsImage
     }

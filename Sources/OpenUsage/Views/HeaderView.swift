@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// The dashboard footer's trailing control: a single **Options ⌄** menu button in Liquid Glass. The
 /// earlier split button ("Customize" + separate chevron) confused people — two tap targets in one
@@ -36,7 +37,7 @@ struct HeaderView: View {
     private static let controlHeight: CGFloat = 28
 
     var body: some View {
-        leadingControl
+        WithPerceptionTracking { leadingControl }
     }
 
     /// On the dashboard, the Options menu button on one glass capsule.
@@ -57,7 +58,7 @@ struct HeaderView: View {
     /// `.menuIndicator(.hidden)` drops the built-in arrow in favor of our styled chevron.
     private var optionsButton: some View {
         Menu {
-            menuItems
+            WithPerceptionTracking { menuItems }
         } label: {
             HStack(spacing: 5) {
                 Text("Options")

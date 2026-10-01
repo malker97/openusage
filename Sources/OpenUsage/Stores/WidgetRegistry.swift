@@ -4,7 +4,7 @@ import Foundation
 /// `ProviderRuntime`s at launch.
 ///
 /// The registry is immutable once built, and its lookups are read on every render through
-/// `LayoutStore`'s `@Observable` computed properties (display groups, metric order, pin counts).
+/// `LayoutStore`'s `@Perceptible` computed properties (display groups, metric order, pin counts).
 /// So the three accessors are backed by lookup maps precomputed once at construction — O(1)/O(k)
 /// instead of linear scans of every descriptor on every call.
 struct WidgetRegistry: Sendable {

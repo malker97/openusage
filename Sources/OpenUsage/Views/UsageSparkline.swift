@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The Usage Trend row: a compact, right-aligned day-by-day token sparkline that reads at a glance and
 /// keeps the card's row rhythm. Hovering reveals a larger, readable chart (`UsageTrendDetail`) with the
@@ -26,6 +27,10 @@ struct UsageSparkline: View {
     }
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         HStack(spacing: 8) {
             Text(data.title)
                 .font(.system(size: density.supportingPointSize, weight: .semibold))
@@ -48,9 +53,7 @@ struct UsageSparkline: View {
                 .animation(.easeOut(duration: 0.12), value: showChartHighlight)
                 // Only the bar strip is hoverable — hovering the title must not reveal the detail.
                 .contentShape(Rectangle())
-                .onContinuousHover { phase in
-                    if case .active = phase { hover.inlineHover(true) } else { hover.inlineHover(false) }
-                }
+                .onHover { inside in hover.inlineHover(inside) }
                 // Dismissing from outside (click-away) removes the detail view without an `.ended`
                 // hover event, so a plain assignment would strand `overDetail == true` and block
                 // future hides — reset the whole hover state instead.

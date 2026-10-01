@@ -1,14 +1,14 @@
 import Foundation
-import Observation
+import Perception
 
 /// User preferences for quota pace notifications: the three per-milestone triggers (no master switch —
 /// turn all three off to silence). All default OFF; the app requests notification authorization the
 /// first time a trigger is turned on, so a fresh install stays quiet until the user opts in.
 ///
 /// Persisted in `UserDefaults` (each key independently, with an unset key defaulting to `false`).
-/// `@Observable` lets the Settings toggles and `WidgetDataStore` evaluation read live values.
+/// `@Perceptible` lets the Settings toggles and `WidgetDataStore` evaluation read live values.
 @MainActor
-@Observable
+@Perceptible
 final class NotificationSettingsStore {
     private let defaults: UserDefaults
 

@@ -1,5 +1,4 @@
 import Foundation
-import Synchronization
 import XCTest
 @testable import OpenUsage
 
@@ -48,7 +47,7 @@ final class ClaudeSessionIdentityTests: XCTestCase {
         }
         let home = try ClaudeLogFixture.makeUserHome(claudeFiles: files)
         defer { try? FileManager.default.removeItem(at: home) }
-        let reads = Mutex(0)
+        let reads = Locked(initialState: 0)
         let scanner = ClaudeLogUsageScanner(
             environment: FakeEnvironment([:]), homeDirectory: { home },
             incrementalScanner: IncrementalJSONLScanner<ClaudeLogUsageScanner.Entry>(),
@@ -99,7 +98,7 @@ final class ClaudeSessionIdentityTests: XCTestCase {
             "workspace/session/subagents/b.jsonl": "{}"
         ])
         defer { try? FileManager.default.removeItem(at: home) }
-        let reads = Mutex(0)
+        let reads = Locked(initialState: 0)
         let scanner = ClaudeLogUsageScanner(
             environment: FakeEnvironment([:]), homeDirectory: { home },
             incrementalScanner: IncrementalJSONLScanner<ClaudeLogUsageScanner.Entry>(),

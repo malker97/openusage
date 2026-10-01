@@ -1,5 +1,5 @@
 import CoreGraphics
-import Observation
+import Perception
 
 /// The popover's auto-fit height *computation*, split out of `DashboardView`: per-screen measured
 /// pieces summed into each screen's ideal window height (the morph target), clamped to the panel's
@@ -7,18 +7,18 @@ import Observation
 /// the `withAnimation` spring — so this holds only the deterministic measurement/target logic (which is
 /// now unit-testable), not the timing-sensitive animation clock.
 ///
-/// Held as `@State` by the view; `@Observable` so `measuredIdeal` changes drive the view's morph
+/// Held as `@State` by the view; `@Perceptible` so `measuredIdeal` changes drive the view's morph
 /// `onChange`. The measured parts are written from the view's geometry callbacks via the setters.
 @MainActor
-@Observable
+@Perceptible
 final class PanelHeightCoordinator {
     /// The window height each screen wants (top bar + footer + scroll content) — the morph target the
     /// view animates toward. `private(set)`: written only through the measurement setters below.
     private(set) var measuredIdeal: [PopoverScreen: CGFloat] = [:]
 
-    @ObservationIgnored private var measuredScrollContent: [PopoverScreen: CGFloat] = [:]
-    @ObservationIgnored private var measuredFooter: [PopoverScreen: CGFloat] = [:]
-    @ObservationIgnored private let topBarHeight: CGFloat
+    @PerceptionIgnored private var measuredScrollContent: [PopoverScreen: CGFloat] = [:]
+    @PerceptionIgnored private var measuredFooter: [PopoverScreen: CGFloat] = [:]
+    @PerceptionIgnored private let topBarHeight: CGFloat
 
     init(topBarHeight: CGFloat) {
         self.topBarHeight = topBarHeight

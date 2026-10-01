@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The "wrong door" cross-link pinned under the last card of Customize (L1) and Settings.
 /// Customize and Settings sound alike, so people regularly open one while hunting for the other.
@@ -21,6 +22,10 @@ struct ScreenCrossLinkRow: View {
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         Button {
             withAnimation(Motion.modeSwitch) {
                 layout.screen = destination

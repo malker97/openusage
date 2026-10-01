@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import KeyboardShortcuts
 import SwiftUI
+import Perception
 import UserNotifications
 
 /// The in-popover Settings screen — the popover's third mode alongside the dashboard and
@@ -39,15 +40,16 @@ struct SettingsScreen: View {
     /// identity the still-mounted Settings screen would keep showing the cleared shortcut.
     @State private var shortcutFieldGeneration = 0
     /// Settings stays mounted between visits, so explicitly restore its previous scroll-to-top behavior.
-    @State private var scrollPosition = ScrollPosition(edge: .top)
+    @State private var scrollResetID = 0
 
     /// Fills the region the dashboard's pinned footer leaves. Same scroller treatment as Customize:
     /// the overlay scroller stays (the scroll edge effect needs it) but is invisible.
     var body: some View {
-        PopoverScrollView {
-            content
+        WithPerceptionTracking {
+            PopoverScrollView(resetID: scrollResetID) {
+                content
+            }
         }
-        .scrollPosition($scrollPosition)
     }
 
     private var content: some View {
@@ -73,9 +75,9 @@ struct SettingsScreen: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .task { await refreshNotificationsAuth() }
-        .onChange(of: layout.screen) { _, screen in
+        .onChange(of: layout.screen) { screen in
             if screen == .settings {
-                scrollPosition.scrollTo(edge: .top)
+                scrollResetID &+= 1
                 launchAtLogin.refreshStatus()
                 commandLineTool.refreshStatus()
                 Task { await refreshNotificationsAuth() }
@@ -100,11 +102,17 @@ struct SettingsScreen: View {
                     .settingsSwitchStyle()
             }
             row("Launch at Login") {
-                Toggle("", isOn: Binding(
-                    get: { launchAtLogin.isEnabled },
-                    set: { launchAtLogin.update(to: $0) }
-                ))
+                if LaunchAtLoginSetting.isSupported {
+                    Toggle("", isOn: Binding(
+                        get: { launchAtLogin.isEnabled },
+                        set: { launchAtLogin.update(to: $0) }
+                    ))
                     .settingsSwitchStyle()
+                } else {
+                    Text("Requires macOS 13")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             if let launchAtLoginError = launchAtLogin.errorMessage {
                 inlineNotice(launchAtLoginError)
@@ -119,8 +127,8 @@ struct SettingsScreen: View {
     }
 
     private var appearanceSection: some View {
-        @Bindable var layout = container.layout
-        @Bindable var transparency = container.transparency
+        @Perception.Bindable var layout = container.layout
+        @Perception.Bindable var transparency = container.transparency
         return section("Appearance") {
             row("Icon Style") {
                 picker($layout.menuBarStyle, options: MenuBarStyle.allCases, label: \.label)
@@ -128,7 +136,7 @@ struct SettingsScreen: View {
             row("Theme") {
                 picker($appearance, options: AppearanceSetting.allCases, label: \.label)
                     // NSApp-level so the popover panel restyles too (it ignores preferredColorScheme).
-                    .onChange(of: appearance) {
+                    .onChange(of: appearance) { _ in
                         AppearanceSetting.applyCurrent()
                     }
             }
@@ -183,7 +191,7 @@ struct SettingsScreen: View {
     }
 
     private var usageDisplaySection: some View {
-        @Bindable var store = container.dataStore
+        @Perception.Bindable var store = container.dataStore
         return section("Usage Display") {
             row("Show Usage As") {
                 picker($store.meterStyle, options: WidgetDisplayMode.allCases, label: \.label)
@@ -202,7 +210,7 @@ struct SettingsScreen: View {
     }
 
     private var privacySection: some View {
-        @Bindable var privacy = container.privacy
+        @Perception.Bindable var privacy = container.privacy
         return section("Privacy") {
             row("Hide From Screen Share") {
                 Toggle("", isOn: $privacy.hideUsageWhileScreenSharing)
@@ -233,7 +241,7 @@ struct SettingsScreen: View {
 
     @ViewBuilder
     private var updatesSection: some View {
-        @Bindable var updater = updater
+        @Perception.Bindable var updater = updater
         // Visible whenever the updater is active (only the signed release build ships a feed; the
         // dev build and a bare `swift run`, with no feed, hide this).
         if updater.isActive {
@@ -270,7 +278,7 @@ struct SettingsScreen: View {
     /// the toggles appear when macOS permission isn't authorized and at least one trigger is on. Defaults
     /// are all off; the app requests authorization the first time a trigger is turned on.
     private var notificationsSection: some View {
-        @Bindable var notifications = container.notificationSettings
+        @Perception.Bindable var notifications = container.notificationSettings
         let needsAttention = notificationsAuth != .authorized && anyToggleOn
         return VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
             HStack(spacing: 6) {
@@ -297,7 +305,7 @@ struct SettingsScreen: View {
             }
             .cardSurface()
         }
-        .onChange(of: anyToggleOn) { _, on in
+        .onChange(of: anyToggleOn) { on in
             if on {
                 // The first time a trigger is turned on, ask macOS for permission (memoized — it only
                 // prompts while authorization is still not determined). Then refresh so the
@@ -406,7 +414,7 @@ struct SettingsScreen: View {
         section("Advanced") {
             row("Log Level") {
                 picker($logLevel, options: LogLevelSetting.allCases, label: \.label)
-                    .onChange(of: logLevel) {
+                    .onChange(of: logLevel) { _ in
                         // Apply the new floor to the file sink immediately, then record the transition.
                         AppLog.reloadLevel()
                         AppLog.info(.config, "Log level changed to \(logLevel.rawValue)")

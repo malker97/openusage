@@ -81,10 +81,10 @@ final class RefreshTimeoutTests: XCTestCase {
     }
 
     private func waitUntil(_ condition: @MainActor () -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while ContinuousClock.now < deadline {
+        let deadline = DispatchTime.now().uptimeNanoseconds + DelayDuration.seconds(2).nanoseconds
+        while DispatchTime.now().uptimeNanoseconds < deadline {
             if condition() { return true }
-            try? await Task.sleep(for: .milliseconds(1))
+            try? await AsyncDelay.sleep(for: .milliseconds(1))
         }
         return condition()
     }

@@ -38,7 +38,7 @@ struct ShortcutRecorderField: View {
                     .padding(.vertical, 4)
                     .background(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(.quinary)
+                            .fill(Theme.subtleFill)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -67,7 +67,7 @@ struct ShortcutRecorderField: View {
             currentShortcut = KeyboardShortcuts.getShortcut(for: name)
         }
         .background(HostWindowReader(window: $hostWindow))
-        .onChange(of: isVisible) { _, isVisible in
+        .onChange(of: isVisible) { isVisible in
             if !isVisible { stopRecording() }
         }
         // Covers this field actually unmounting, including resets and host teardown.

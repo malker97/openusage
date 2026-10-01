@@ -18,7 +18,7 @@ brew install --cask openusage
 
 **Direct download:** grab the latest universal DMG from the [releases page](https://github.com/robinebers/openusage/releases/latest), open it, and drag OpenUsage to your Applications folder.
 
-Either way, the app updates itself in place via signed, notarized [Sparkle](docs/updates.md) updates. Requires macOS 15 (Sequoia) or later.
+Either way, the app updates itself in place via signed, notarized [Sparkle](docs/updates.md) updates. Existing published builds may require macOS 15 (Sequoia) or later. This checkout targets macOS 12; see [macOS compatibility](docs/compatibility.md) for building and testing the compatibility version.
 
 ## Supported Providers
 
@@ -59,7 +59,7 @@ For working on the code, see the developer docs: [architecture](docs/architectur
 
 ## Requirements
 
-- macOS 15 (Sequoia) or later
+- macOS 12 (Monterey) or later for builds from this checkout; older published releases may still require macOS 15
 - Universal binary — runs natively on both Apple Silicon and Intel Macs
 
 The Today / Yesterday / Last 30 Days spend tiles are computed natively from local CLI logs (Claude,
@@ -69,6 +69,10 @@ with [dynamically refreshed model pricing](docs/pricing.md).
 
 
 ## Building
+
+Requires Swift 6.2+ and the macOS 26 SDK (Xcode 26). These are **build-machine** requirements, not
+requirements for running the app. A newer Mac or CI can build it for Monterey without upgrading the
+Mac that runs it; see [macOS compatibility](docs/compatibility.md).
 
 ```sh
 swift build            # debug build

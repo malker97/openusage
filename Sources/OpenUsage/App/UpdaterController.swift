@@ -1,7 +1,7 @@
 import AppKit
 import Combine
 import Foundation
-import Observation
+import Perception
 import Sparkle
 
 /// Wraps Sparkle's standard updater so the rest of the app stays Sparkle-agnostic.
@@ -11,7 +11,7 @@ import Sparkle
 /// `swift run` and the in-place dev build ship no feed, leaving the updater dormant and the section
 /// hidden. See `docs/updates.md` for the user-facing behavior.
 @MainActor
-@Observable
+@Perceptible
 final class UpdaterController {
     /// `UserDefaults` key for the beta-channel opt-in. Read in two places — the SwiftUI
     /// toggle here and the Sparkle channel delegate's `allowedChannels` — so the stored default is the
@@ -89,7 +89,7 @@ final class UpdaterController {
         )
         self.controller = controller
         isActive = true
-        // Bridge Sparkle's KVO property into our `@Observable` state so SwiftUI tracks button enablement.
+        // Bridge Sparkle's KVO property into our `@Perceptible` state so SwiftUI tracks button enablement.
         // Delivery is forced onto the main queue so the main-actor mutation below is always valid.
         canCheckForUpdates = controller.updater.canCheckForUpdates
         canCheckObservation = controller.updater.publisher(for: \.canCheckForUpdates)

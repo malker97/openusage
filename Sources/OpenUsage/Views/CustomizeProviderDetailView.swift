@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The Customize detail for one provider (L2): two distinct cards — **Always Visible** (shown on the
 /// dashboard card) and **On Demand** (tucked behind the card's caret). Drag a metric by its grip
@@ -26,6 +27,11 @@ struct CustomizeProviderDetailView: View {
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    @ViewBuilder
+    private var trackedBody: some View {
         if let group = layout.customizeDetail(for: providerID) {
             VStack(alignment: .leading, spacing: density.sectionSpacing) {
                 metricSections(group)
@@ -67,7 +73,7 @@ struct CustomizeProviderDetailView: View {
                     emptyDropZone(providerID: providerID)
                 } else {
                     ForEach(metrics, id: \.id) { metric in
-                        metricRow(metric, in: providerID)
+                        WithPerceptionTracking { metricRow(metric, in: providerID) }
                     }
                 }
             }
@@ -195,6 +201,11 @@ private struct StarButton: View {
     @State private var shakeTrigger = 0
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    @ViewBuilder
+    private var trackedBody: some View {
         if metric.pinnable {
             let pinned = layout.isPinned(metric.id)
             Button {

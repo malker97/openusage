@@ -1,12 +1,12 @@
 import Foundation
-import Observation
+import Perception
 
 /// One-time onboarding state. Today that's a single bit: whether the dashboard should still show the
 /// first-run Customize hint card. `FirstRunSeeder` marks it pending when it seeds a fresh install's
 /// provider set (existing installs are never seeded, so they never see the card); it clears when the
 /// user dismisses the card or visits Customize.
 @MainActor
-@Observable
+@Perceptible
 final class OnboardingStore {
     private static let customizeHintPendingKey = "openusage.onboarding.customizeHintPending"
 

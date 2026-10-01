@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// One metric as a row inside a provider's grouped list container. The provider icon is drawn once in the
 /// section header (not per row), so a row shows only the metric. Two layouts:
@@ -47,6 +48,10 @@ struct WidgetRowView: View {
     }
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         // A row with a concrete reset date derives time-sensitive state (reset countdown, pace marker,
         // "Runs out in …") from the current clock, so it re-renders on a 30s tick — the cadence the
         // original app uses — instead of waiting for the next data refresh. TimelineView only schedules
@@ -54,7 +59,7 @@ struct WidgetRowView: View {
         Group {
             if data.resetsAt != nil || !data.expiriesAt.isEmpty {
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
-                    rowContent
+                    WithPerceptionTracking { rowContent }
                 }
             } else {
                 rowContent
@@ -228,14 +233,14 @@ struct WidgetRowView: View {
             Button(action: onToggleMeterStyle) {
                 Text(data.headline)
                     .foregroundStyle(.primary)
-                    .contentTransition(.numericText())
+                    .numericTextTransition()
             }
             .buttonStyle(.plain)
             .hoverTooltip(data.meterStyleTooltip)
         } else {
             Text(data.headline)
                 .foregroundStyle(.primary)
-                .contentTransition(.numericText())
+                .numericTextTransition()
         }
     }
 
@@ -262,13 +267,13 @@ struct WidgetRowView: View {
     /// and an optional secondary line ("on-device estimate") beneath it.
     private var unboundedRow: some View {
         unboundedRowContent
-            .onChange(of: data.modelBreakdown) { _, _ in modelHover.dismiss() }
+            .onChange(of: data.modelBreakdown) { _ in modelHover.dismiss() }
             // A refresh can replace the reset credits (count and expiries) while the popover is open;
             // drop it so it never lingers over a stale timeline — except while the claim flow has the
             // popover pinned: the claim's own forced refresh is what changes the credits, and dismissing
             // on it would close the popover before the claim's result banner ever renders. The pinned
             // popover re-renders from the new data instead (the detail view reconciles its own state).
-            .onChange(of: data.expiriesAt) { _, _ in
+            .onChange(of: data.expiriesAt) { _ in
                 if !modelHover.isPinned { modelHover.dismiss() }
             }
             .onDisappear { modelHover.dismiss() }
@@ -304,7 +309,7 @@ struct WidgetRowView: View {
                     Text(data.unboundedDetail)
                         .font(supportingFont)
                         .foregroundStyle(.primary) // the value is the row's payload — match the bounded headline
-                        .contentTransition(.numericText())
+                        .numericTextTransition()
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         // Hover target is the value text itself, not the whole row — the same
@@ -345,16 +350,12 @@ struct WidgetRowView: View {
             // it explains should — and the arrow then centers on that figure, matching the trend
             // popover's anchoring off the sparkline strip.
             .contentShape(Rectangle())
-            .onContinuousHover { phase in
+            .onHover { inside in
                 guard hasHoverPopover else {
                     modelHover.dismiss()
                     return
                 }
-                if case .active = phase {
-                    modelHover.inlineHover(true)
-                } else {
-                    modelHover.inlineHover(false)
-                }
+                modelHover.inlineHover(inside)
             }
             .motionAwareHoverPopover(
                 isPresented: Binding(

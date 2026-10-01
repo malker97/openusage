@@ -239,7 +239,7 @@ private final class ProbeGate {
         return await withCheckedContinuation { continuation in
             waiters[id] = continuation
             Task { [weak self] in
-                try? await Task.sleep(for: .seconds(5))
+                try? await AsyncDelay.sleep(for: .seconds(5))
                 guard let waiter = self?.waiters.removeValue(forKey: id) else { return }
                 waiter.resume(returning: false)
             }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The dashboard-only scrolling content. Screen switching, panel sizing, fixed bars, keyboard handling,
 /// and close/reset behavior stay with `DashboardView`.
@@ -11,13 +12,17 @@ struct DashboardContentView: View {
     let bottomGap: CGFloat
 
     @Binding var reorderLift: ReorderLift?
-    @Binding var scrollPosition: ScrollPosition
+    @Binding var scrollResetID: Int
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @AppStorage(TotalSpendSetting.key) private var showTotalSpend = true
 
     var body: some View {
-        PopoverScrollView {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
+        PopoverScrollView(resetID: scrollResetID) {
             VStack(alignment: .leading, spacing: 0) {
                 // A pending update found by a scheduled Sparkle check tops everything — it's the
                 // reminder the buried Sparkle window can't deliver for a dockless app.
@@ -42,7 +47,6 @@ struct DashboardContentView: View {
             .padding(.bottom, bottomGap)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .scrollPosition($scrollPosition)
     }
 
     @ViewBuilder

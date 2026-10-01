@@ -128,25 +128,20 @@ private struct HoverTooltipModifier: ViewModifier {
             .environment(\.tooltipDepth, depth + 1)
             .background { TooltipAnchorView(anchor: anchor) }
             .accessibilityHint(resolved ?? "")
-            // Continuous (not plain `onHover`) so the presenter always has the live hover state; it
-            // reads the cursor itself at show time, so the reported location is unused here.
-            .onContinuousHover { phase in
-                switch phase {
-                case .active:
-                    isHovering = true
+            // The presenter reads the cursor at show time; enter/exit events suffice on Monterey.
+            .onHover { inside in
+                isHovering = inside
+                if inside {
                     syncPresenter()
-                case .ended:
-                    // Always exit, regardless of `resolved`: if the text went nil/empty while hovered,
-                    // a guarded-out `.ended` would leave this target in the presenter and its tooltip
-                    // would linger.
-                    isHovering = false
+                } else {
+                    // Always exit, including when the text disappeared while hovered.
                     TooltipPresenter.shared.exit(id: id)
                 }
             }
             // Text can change while the cursor sits still (e.g. a meter tooltip refreshing to a no-tip
             // state on its 30s tick), with no hover event to react to — reconcile so the bubble updates
             // or clears.
-            .onChange(of: resolved) { syncPresenter() }
+            .onChange(of: resolved) { _ in syncPresenter() }
             // A row can be torn down (scroll, screen switch, popover close) without an `.ended`, so
             // clear our entry here too or the panel could linger.
             .onDisappear {
@@ -205,7 +200,7 @@ private final class TooltipPresenter {
     /// floor of that window and fires a little too readily on a slow drag across rows. If deliberate
     /// neighbour-to-neighbour reading ever feels laggy, raise this to 500ms before reintroducing any
     /// reshow shortcut, since a tuned reshow risks reopening the original complaint.
-    private let revealDelay: Duration = .milliseconds(400)
+    private let revealDelay: DelayDuration = .milliseconds(400)
 
     /// Space between the bubble and the anchor: the panel's bottom edge sits this far above the
     /// hovered item's top edge (or below its bottom edge when flipped).
@@ -267,7 +262,7 @@ private final class TooltipPresenter {
     }
 
     /// Reconcile the panel with the deepest active target. Cheap and idempotent, so the per-pixel
-    /// `onContinuousHover` calls mostly hit an early return.
+    /// Duplicate enter requests mostly hit an early return.
     private func refresh() {
         guard let top = active.max(by: { $0.value.depth < $1.value.depth }) else {
             cancelPending()
@@ -305,7 +300,7 @@ private final class TooltipPresenter {
         let id = top.key
         let delay = revealDelay
         revealTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
+            try? await AsyncDelay.sleep(for: delay)
             guard !Task.isCancelled, let self else { return }
             self.present(target)
             self.shownID = id

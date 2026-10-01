@@ -1,4 +1,4 @@
-import Observation
+import Perception
 
 /// A small auto-clearing UI notice — the "shown for a couple of seconds, then it clears itself" pill.
 /// One reusable box for what used to be three copy-pasted machines in `LayoutStore` (the pin-denial
@@ -10,7 +10,7 @@ import Observation
 /// `clear()` resets immediately and cancels the timer — call it on popover close so a pill mid-countdown
 /// can't reappear stale on the next open (the store outlives the popover).
 @MainActor
-@Observable
+@Perceptible
 final class TransientNotice<Value> {
     private(set) var value: Value
     /// Bumped on every `present` so a `.id(trigger)`-keyed view replays its transition each time.
@@ -18,13 +18,13 @@ final class TransientNotice<Value> {
 
     // `let`s are never observation-tracked; only the mutable task needs the annotation.
     private let clearedValue: Value
-    private let timeout: Duration
-    @ObservationIgnored private var clearTask: Task<Void, Never>?
+    private let timeout: DelayDuration
+    @PerceptionIgnored private var clearTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - clearedValue: the resting value shown when nothing is presented (e.g. `nil` / `false`).
     ///   - timeout: how long a presented value stays before it auto-clears.
-    init(clearedValue: Value, timeout: Duration) {
+    init(clearedValue: Value, timeout: DelayDuration) {
         self.value = clearedValue
         self.clearedValue = clearedValue
         self.timeout = timeout
@@ -36,7 +36,7 @@ final class TransientNotice<Value> {
         clearTask?.cancel()
         let timeout = self.timeout
         clearTask = Task { [weak self] in
-            try? await Task.sleep(for: timeout)
+            try? await AsyncDelay.sleep(for: timeout)
             guard let self, !Task.isCancelled else { return }
             value = clearedValue
         }

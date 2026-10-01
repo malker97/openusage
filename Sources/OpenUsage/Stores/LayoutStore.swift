@@ -1,10 +1,10 @@
 import SwiftUI
-import Observation
+import Perception
 
 /// Mutable layout: which widgets are enabled, provider order, and each provider's metric order.
 /// `placed` is the enabled set (with stable widget ids); `metricOrderByProvider` is the user's custom order.
 @MainActor
-@Observable
+@Perceptible
 final class LayoutStore {
     // Swift's private access is file-scoped. Members shared with `LayoutStore+Customization.swift`
     // stay module-internal below; implementation details used only here remain private.

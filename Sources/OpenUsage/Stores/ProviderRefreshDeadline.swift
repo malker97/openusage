@@ -29,7 +29,7 @@ enum ProviderRefreshDeadline {
             await withCheckedContinuation { (continuation: CheckedContinuation<ProviderSnapshot?, Never>) in
                 // Detached, so a busy MainActor can't delay the one thing that bounds the wait.
                 let deadline = Task.detached {
-                    try? await Task.sleep(for: .seconds(timeout))
+                    try? await AsyncDelay.sleep(for: .seconds(timeout))
                     guard !Task.isCancelled, claim.claim() else { return }
                     work.cancel()
                     continuation.resume(returning: nil)
@@ -56,7 +56,7 @@ enum ProviderRefreshDeadline {
 /// check-and-set has to be atomic — with a plain `Bool` both can read it as unclaimed and resume, and a
 /// second resume is a fatal error, not a caught one.
 private struct ContinuationClaim: Sendable {
-    private let claimed = OSAllocatedUnfairLock(initialState: false)
+    private let claimed = Locked(initialState: false)
 
     func claim() -> Bool {
         claimed.withLock { claimed in

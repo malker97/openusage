@@ -1,4 +1,4 @@
-import Observation
+import Perception
 import os
 import XCTest
 @testable import OpenUsage
@@ -70,8 +70,8 @@ final class PanelHeightCoordinatorTests: XCTestCase {
         coordinator.setScrollContent(300, for: .dashboard)
         coordinator.setFooter(40, for: .dashboard)
 
-        let invalidated = OSAllocatedUnfairLock(initialState: false)
-        withObservationTracking {
+        let invalidated = Locked(initialState: false)
+        withPerceptionTracking {
             _ = coordinator.measuredIdeal
         } onChange: {
             invalidated.withLock { $0 = true }
@@ -88,8 +88,8 @@ final class PanelHeightCoordinatorTests: XCTestCase {
         let coordinator = PanelHeightCoordinator(topBarHeight: topBar)
         coordinator.setScrollContent(300, for: .dashboard)
 
-        let invalidated = OSAllocatedUnfairLock(initialState: false)
-        withObservationTracking {
+        let invalidated = Locked(initialState: false)
+        withPerceptionTracking {
             _ = coordinator.measuredIdeal
         } onChange: {
             invalidated.withLock { $0 = true }

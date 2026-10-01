@@ -18,19 +18,29 @@ import SwiftUI
 /// intrinsic height — invariant to the window/viewport height, which is what keeps the auto-fit from
 /// feeding back on itself. The preference bubbles up past the `ScrollView` to the per-screen wrapper.
 struct PopoverScrollView<Content: View>: View {
+    var resetID: Int = 0
     @ViewBuilder let content: Content
+    private static var topAnchor: String { "openusage-scroll-top" }
 
     var body: some View {
-        ScrollView(.vertical) {
-            content
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 0).id(Self.topAnchor)
+                    content
+                }
                 .invisibleOverlayScroller()
                 .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(key: ScrollContentHeightKey.self, value: proxy.size.height)
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: ScrollContentHeightKey.self, value: geometry.size.height)
                     }
                 )
+            }
+            .popoverScrollBounceBehavior()
+            .onChange(of: resetID) { _ in
+                proxy.scrollTo(Self.topAnchor, anchor: .top)
+            }
         }
-        .scrollBounceBehavior(.basedOnSize)
     }
 }
 

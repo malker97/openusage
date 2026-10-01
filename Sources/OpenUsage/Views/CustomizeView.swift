@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The Customize screen, now a two-level master/detail: the provider list (L1) or, when
 /// `layout.customizeProviderID` is set, that provider's detail (L2). The two slide horizontally — L2
@@ -18,6 +19,10 @@ struct CustomizeView: View {
     @State private var frameStore = ReorderFrameStore()
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         PopoverScrollView {
             content
                 .padding(.horizontal, 14)
@@ -29,9 +34,11 @@ struct CustomizeView: View {
         // as the dashboard's "Copied to clipboard" share pill. Green for a successful star/unstar,
         // orange for the per-provider cap denial.
         .overlay(alignment: .bottom) {
-            if layout.customizationNotice != nil {
-                customizationNoticePill
-                    .padding(.bottom, 12)
+            WithPerceptionTracking {
+                if layout.customizationNotice != nil {
+                    customizationNoticePill
+                        .padding(.bottom, 12)
+                }
             }
         }
         .animation(Motion.spring, value: layout.customizationNotice)

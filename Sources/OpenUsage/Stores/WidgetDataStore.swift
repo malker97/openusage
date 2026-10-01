@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Perception
 
 /// A compact staleness hint for a provider's on-screen snapshot. `label` is a short, fixed word
 /// ("Outdated") that stays narrow next to long plan names like "Super Grok Heavy", while the precise
@@ -10,7 +10,7 @@ struct StalenessHint: Equatable {
 }
 
 @MainActor
-@Observable
+@Perceptible
 final class WidgetDataStore {
     private let registry: WidgetRegistry
     private let providersByID: [String: ProviderRuntime]
@@ -86,21 +86,21 @@ final class WidgetDataStore {
     var providerErrors: [String: String] = [:]
 
     /// Per-provider earliest next-probe time after a failure (see `failureRetryBackoff`). Not part of
-    /// observable UI state, so it's excluded from `@Observable` tracking.
-    @ObservationIgnored private var failureRetryAfter: [String: Date] = [:]
+    /// observable UI state, so it's excluded from `@Perceptible` tracking.
+    @PerceptionIgnored private var failureRetryAfter: [String: Date] = [:]
 
     /// Owns the quota pace-notification subsystem (dedup state, fire/deliver decision, trace). This store
     /// just gathers each pass's enabled bounded metrics and delegates.
-    @ObservationIgnored private let notificationEvaluator = QuotaNotificationEvaluator()
+    @PerceptionIgnored private let notificationEvaluator = QuotaNotificationEvaluator()
 
     /// Telemetry hook wired by `AppContainer`. Invoked once per *real* provider fetch — `.refreshed` or
     /// `.failed` only, never the cache-hit/skip/backoff outcomes that the 5-minute timer produces in
     /// bulk — so the recorder can roll daily usage and error counts up into one event per provider per
     /// day. `nil` (and so a no-op) in tests and previews. Not observable UI state.
-    @ObservationIgnored var onRefreshOutcome: (@MainActor (String, RefreshOutcome, ErrorCategory?, Bool) -> Void)?
+    @PerceptionIgnored var onRefreshOutcome: (@MainActor (String, RefreshOutcome, ErrorCategory?, Bool) -> Void)?
     /// Wired by `ICloudUsageSyncStore`; debounced there so a concurrent provider batch produces one file.
-    @ObservationIgnored var onLocalHistoryChanged: (@MainActor () -> Void)?
-    @ObservationIgnored private var peerHistoryDocuments: [UsageHistoryDocument] = []
+    @PerceptionIgnored var onLocalHistoryChanged: (@MainActor () -> Void)?
+    @PerceptionIgnored private var peerHistoryDocuments: [UsageHistoryDocument] = []
 
     /// Global meter style: whether every bounded tile (and the menu-bar value) renders as "used" or
     /// "left/remaining". Persisted so the choice survives relaunch; defaults to `.remaining`.
@@ -290,7 +290,7 @@ final class WidgetDataStore {
             currentIdentityKey: providerIdentityKeys[providerID]
         )
         if !force, !staleAccountStamp, let cached = cache.snapshot(providerID: providerID) {
-            // Skip the no-op write: `@Observable` doesn't compare values, so unconditionally
+            // Skip the no-op write: `@Perceptible` doesn't compare values, so unconditionally
             // re-assigning an unchanged snapshot would re-render the menu-bar label every pass.
             AppLog.debug(.refresh, "cache hit \(providerID)")
             if localSnapshots[providerID] != cached {

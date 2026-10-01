@@ -1,10 +1,10 @@
 import AppKit
-import Observation
+import Perception
 
 /// Owns the menu-bar strip's render loop, split out of `StatusItemController`: render the pinned-metrics
 /// strip and re-render whenever anything it reads changes (pins, live data, meter style, menu-bar style).
 ///
-/// `withObservationTracking`'s `onChange` is one-shot, so each render re-arms it. After the first change,
+/// `withPerceptionTracking`'s `onChange` is one-shot, so each render re-arms it. After the first change,
 /// the next render waits briefly so a burst of snapshot writes collapses into one render with the latest
 /// values — avoiding enough repeated work to make the menu-bar item disappear during a busy refresh.
 /// Unchanged memoized images are not re-applied: setting the same `NSImage` still costs a WindowServer
@@ -36,7 +36,7 @@ final class StatusItemImageUpdater {
 
     /// Render now and re-arm on the next observable change.
     func update() {
-        let image = withObservationTracking {
+        let image = withPerceptionTracking {
             renderButtonImage()
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
@@ -50,7 +50,7 @@ final class StatusItemImageUpdater {
     /// any immediately-following writes land first; the eventual render then reads their latest values.
     private func scheduleDelayedUpdate() {
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(50))
+            try? await AsyncDelay.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
             self?.update()
         }

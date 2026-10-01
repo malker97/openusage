@@ -95,17 +95,12 @@ struct RateLimitResetsDetail: View {
         // back to a one-line node shrinks the popover again — without this, NSPopover keeps the largest
         // height it has ever measured (it grows on Use but never scales back on Cancel).
         .fixedSize(horizontal: false, vertical: true)
-        .onContinuousHover { phase in
-            switch phase {
-            case .active: onHoverChange(true)
-            case .ended: onHoverChange(false)
-            }
-        }
+        .onHover(perform: onHoverChange)
         // The credits can change under an open (pinned) popover — a background refresh, or the claim's
         // own forced refresh. If the credit awaiting confirmation vanished, fold the confirm card away
         // (and release the pin) rather than stranding a pinned popover whose active node no longer
         // exists. An in-flight claim is left alone: its outcome handler owns the state.
-        .onChange(of: expiries) { _, newValue in
+        .onChange(of: expiries) { newValue in
             if let confirming = confirmingExpiry, !newValue.contains(confirming) {
                 cancelConfirm()
             }
@@ -316,7 +311,7 @@ struct RateLimitResetsDetail: View {
         }
         .padding(confirmCardPadding)
         .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.quaternary.opacity(0.5))
+            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
         }
         .padding(.vertical, 4)
     }
@@ -358,7 +353,10 @@ struct RateLimitResetsDetail: View {
 
     /// One clock for every claim-flow layout change (card expand/collapse, node swap, banner, credit
     /// removal), so the rail, the rows, and the popover height all move together.
-    private static let flowAnimation: Animation = .snappy(duration: 0.25)
+    private static var flowAnimation: Animation {
+        if #available(macOS 14, *) { return .snappy(duration: 0.25) }
+        return .easeInOut(duration: 0.25)
+    }
 
     private func beginConfirm(_ date: Date) {
         if redeemRequestIDs[date] == nil {

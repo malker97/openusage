@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Fixed popover navigation chrome. It always reads the destination screen, so both pages mounted
 /// during a slide draw the same bar and only the scrolling content moves.
@@ -12,6 +13,11 @@ struct PopoverTopBar: View {
 
     @ViewBuilder
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    @ViewBuilder
+    private var trackedBody: some View {
         switch layout.screen {
         case .dashboard:
             EmptyView()
@@ -84,7 +90,7 @@ struct PopoverTopBar: View {
                 .frame(width: 16, height: 16)
         }
         .glassButtonStyle()
-        .buttonBorderShape(.circle)
+        .circularButtonBorder()
         .controlSize(.large)
         .hoverTooltip("Back")
         .accessibilityLabel("Back")
@@ -100,7 +106,7 @@ struct PopoverTopBar: View {
                 .contentShape(Rectangle())
         }
         .glassButtonStyle()
-        .buttonBorderShape(.circle)
+        .circularButtonBorder()
         .controlSize(.large)
         .hoverTooltip("Reset \(layout.provider(id: providerID)?.displayName ?? providerID)")
         .accessibilityLabel("Reset")
@@ -116,7 +122,7 @@ struct PopoverTopBar: View {
                 .contentShape(Rectangle())
         }
         .glassButtonStyle()
-        .buttonBorderShape(.circle)
+        .circularButtonBorder()
         .controlSize(.large)
         .hoverTooltip("Reset All Customization")
         .accessibilityLabel("Reset All Customization")

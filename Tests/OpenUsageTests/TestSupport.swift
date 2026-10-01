@@ -401,7 +401,7 @@ final class HangingProviderRuntime: ProviderRuntime {
         // Far longer than any test's injected deadline, so the deadline always wins the race. The sleep
         // is cancellable purely so a test can observe the cancellation and the task doesn't outlive it.
         do {
-            try await Task.sleep(for: .seconds(60))
+            try await AsyncDelay.sleep(for: .seconds(60))
         } catch {
             wasCancelled = true
         }

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Availability-gated wrappers for the handful of macOS 26 (Tahoe) Liquid Glass APIs the popover
 /// uses, so the rest of the UI can call them declaratively and the app still builds and runs on
-/// macOS 15 (Sequoia).
+/// macOS 12 (Monterey) and later.
 ///
 /// These are purely cosmetic fallbacks — they swap Liquid Glass styling for the established
 /// pre-Tahoe controls (`.bordered` button styles, `.safeAreaInset`, no scroll-edge blur). Function

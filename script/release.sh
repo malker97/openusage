@@ -23,6 +23,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+source "$ROOT_DIR/script/macos_support.sh"
+require_build_toolchain
 
 : "${CODESIGN_IDENTITY:?set CODESIGN_IDENTITY to your Developer ID Application identity}"
 : "${ICLOUD_PROVISIONING_PROFILE:?set ICLOUD_PROVISIONING_PROFILE to the iCloud provisioning profile path}"
@@ -31,7 +33,6 @@ cd "$ROOT_DIR"
 
 APP_NAME="OpenUsage"
 BUNDLE_ID="com.robinebers.openusage"
-MIN_SYSTEM_VERSION="15.0"
 VERSION="$OPENUSAGE_VERSION"
 # CFBundleShortVersionString carries the full version, including any pre-release suffix (e.g.
 # "0.7.0-beta.1"). This is the human-readable string Sparkle shows in its update prompt and the app
@@ -107,18 +108,12 @@ lipo -archs "$APP_BINARY" | grep -q "x86_64" && lipo -archs "$APP_BINARY" | grep
 lipo -archs "$CLI_BINARY" | grep -q "x86_64" && lipo -archs "$CLI_BINARY" | grep -q "arm64" \
   || { echo "Expected a universal CLI, got: $(lipo -archs "$CLI_BINARY")" >&2; exit 1; }
 
-# SwiftPM stamps LC_BUILD_VERSION's `sdk` field with the deployment target (macOS 15), not the real
-# SDK it compiled against. macOS gates the modern Liquid Glass control appearance (pop-up buttons,
-# pickers, etc.) on the linked SDK — a "15.0" stamp makes AppKit fall back to legacy Aqua controls.
-# Restamp the sdk to 26.0 (Tahoe) while keeping minos at MIN_SYSTEM_VERSION so the app still runs on
-# macOS 15 but gets the modern controls. Stamps every slice of the universal binary; re-signed below.
-echo "==> stamping linked SDK 26.0 for Liquid Glass controls (minos stays $MIN_SYSTEM_VERSION)"
-vtool -set-build-version macos "$MIN_SYSTEM_VERSION" 26.0 -replace -output "$APP_BINARY.tmp" "$APP_BINARY"
-mv "$APP_BINARY.tmp" "$APP_BINARY"
-chmod +x "$APP_BINARY"
+# Restamp the SDK for modern AppKit styling without changing the compiler's deployment floor.
+echo "==> stamping linked SDK $LINKED_SDK_VERSION for Liquid Glass controls"
+stamp_linked_sdk "$APP_BINARY"
 # Fail loudly if any slice still reports the old SDK (a silent vtool no-op would ship legacy controls).
-if vtool -show-build "$APP_BINARY" | grep -q "sdk 15.0"; then
-  echo "SDK restamp failed: $APP_BINARY still reports sdk 15.0" >&2
+if vtool -show-build "$APP_BINARY" | awk '$1 == "sdk" { print $2 }' | grep -vqx "$LINKED_SDK_VERSION"; then
+  echo "SDK restamp failed: $APP_BINARY does not report sdk $LINKED_SDK_VERSION on every slice" >&2
   exit 1
 fi
 
@@ -205,6 +200,8 @@ cp "$ICLOUD_PROVISIONING_PROFILE" "$APP_CONTENTS/embedded.provisionprofile"
 # Embed + sign Sparkle (Developer ID, hardened runtime, secure timestamp).
 "$ROOT_DIR/script/embed_sparkle.sh" "$APP_BUNDLE" "$APP_BINARY" "$CODESIGN_IDENTITY" "--options runtime --timestamp"
 codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$CLI_BINARY"
+
+"$ROOT_DIR/script/check_macos_support.sh" "$APP_BUNDLE"
 
 echo "==> signing app (Developer ID, hardened runtime)"
 # Not --deep: the Sparkle framework is signed above and must keep that signature.

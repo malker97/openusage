@@ -1,4 +1,4 @@
-import Observation
+import Perception
 
 /// The screen showing inside the menu-bar popover. Customize and Settings replace the dashboard
 /// in place (the popover has no window stack); Esc backs out to the dashboard first.
@@ -25,7 +25,7 @@ enum PopoverScreen: Hashable, Sendable {
 /// existing `screen`/`isEditing`/`customizeProviderID`/`screenSlide*` surface to this store, so callers
 /// are unchanged.
 @MainActor
-@Observable
+@Perceptible
 final class PopoverNavigationStore {
     /// Which in-popover screen is showing. Drives the footer buttons, the Esc handler, and the
     /// popover-closed reset alike.

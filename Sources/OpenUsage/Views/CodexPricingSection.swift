@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// A local estimation preference, separate from the model used by the coding client.
 struct CodexPricingSection: View {
@@ -14,6 +15,10 @@ struct CodexPricingSection: View {
     @State private var needsRecalculation = false
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
             Text("Cost Estimates")
                 .font(.caption.weight(.semibold))
@@ -76,7 +81,7 @@ struct CodexPricingSection: View {
             options = await ModelPricingStore.shared.current().fallbackOptions(for: "codex")
             recalculateIfNeeded()
         }
-        .onChange(of: selectedModel) {
+        .onChange(of: selectedModel) { _ in
             guard !isLoading else { return }
             recalculateIfNeeded()
         }
@@ -94,7 +99,7 @@ struct CodexPricingSection: View {
                 // A refresh already in flight may have captured the previous preference.
                 // Wait for it before requesting a new pass instead of having that pass skipped.
                 while providerIDs.contains(where: dataStore.refreshingProviderIDs.contains) {
-                    try? await Task.sleep(for: .milliseconds(100))
+                    try? await AsyncDelay.sleep(for: .milliseconds(100))
                     guard !Task.isCancelled else { return }
                 }
                 for providerID in providerIDs {

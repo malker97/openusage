@@ -7,26 +7,84 @@ on:
   pull_request:
     branches: [main]
 
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+# Don't spend two macOS runners on superseded commits.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     name: Build and Test
-    # Builds against the macOS 26 SDK with the package's macOS 15 deployment target (Package.swift
-    # .macOS(.v15)), so this compiles the whole codebase — including the `if #available(macOS 26, *)`
-    # Liquid Glass branches — for the macOS 15 floor. That is the floor's compile guarantee: a binary
-    # built here reports minos 15.0. We do NOT add a macos-15 runner leg — back-deployment compiles
-    # against the newest SDK, and a stock macos-15 runner ships Swift 6.1 without the macOS 26 SDK, so
-    # it cannot build this package. Runtime verification on Sequoia is a manual smoke pass.
+    # Build with Swift 6.2 and the macOS 26 SDK, but target Monterey (Package.swift .macOS(.v12)).
+    # Availability checking compiles both the legacy and modern branches. The tests explicitly force
+    # the Monterey image renderer too. A complete Monterey UI smoke pass still needs a Monterey Mac.
     runs-on: macos-26
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Check build environment
+        id: environment
+        run: |
+          source script/macos_support.sh
+          require_build_toolchain
+          uname -m
+          swift --version
+          xcrun --sdk macosx --show-sdk-version
+          echo "toolchain=$({ swift --version; xcrun --sdk macosx --show-sdk-build-version; } | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Swift build cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .build
+          key: swift-${{ runner.os }}-${{ runner.arch }}-${{ steps.environment.outputs.toolchain }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            swift-${{ runner.os }}-${{ runner.arch }}-${{ steps.environment.outputs.toolchain }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-
+            swift-${{ runner.os }}-${{ runner.arch }}-${{ steps.environment.outputs.toolchain }}-
 
       - name: Build
         run: swift build
 
       - name: Run tests
         run: swift test
+
+      - name: Stage and verify Monterey-compatible app
+        env:
+          CONFIG: debug
+          CODESIGN_IDENTITY: "-"
+        run: |
+          ./script/build_and_run.sh build
+          ditto -c -k --keepParent dist/OpenUsage.app dist/OpenUsage-Monterey.zip
+
+      - name: Upload compatibility build
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenUsage-Monterey
+          path: dist/OpenUsage-Monterey.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload dependency lockfile
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenUsage-build-metadata
+          path: Package.resolved
+          if-no-files-found: error
+          retention-days: 14
+
+      # Preserve expensive SwiftSyntax compilation even when app compilation fails.
+      - name: Save Swift build cache
+        if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ steps.cache.outputs.cache-primary-key }}

@@ -12,21 +12,21 @@ final class TransientNoticeTests: XCTestCase {
         notice.present("Starred for menu bar")
         XCTAssertEqual(notice.value, "Starred for menu bar")
         XCTAssertEqual(notice.trigger, 1)
-        try await Task.sleep(for: .milliseconds(500))
+        try await AsyncDelay.sleep(for: .milliseconds(500))
         XCTAssertNil(notice.value)
     }
 
     func testRePresentRestartsTheClearTimer() async throws {
         let notice = TransientNotice<String?>(clearedValue: nil, timeout: .milliseconds(800))
         notice.present("first")
-        try await Task.sleep(for: .milliseconds(400))
+        try await AsyncDelay.sleep(for: .milliseconds(400))
         notice.present("second")
         // Nominal 1000ms: past the first present's 800ms deadline, well before the second's 1200ms.
         // If the first timer weren't cancelled, it would have wiped "second" here.
-        try await Task.sleep(for: .milliseconds(600))
+        try await AsyncDelay.sleep(for: .milliseconds(600))
         XCTAssertEqual(notice.value, "second")
         XCTAssertEqual(notice.trigger, 2)
-        try await Task.sleep(for: .milliseconds(800))
+        try await AsyncDelay.sleep(for: .milliseconds(800))
         XCTAssertNil(notice.value)
     }
 
@@ -37,7 +37,7 @@ final class TransientNoticeTests: XCTestCase {
         XCTAssertFalse(notice.value)
         // The trigger only moves on present — clear must not replay the pill.
         XCTAssertEqual(notice.trigger, 1)
-        try await Task.sleep(for: .milliseconds(300))
+        try await AsyncDelay.sleep(for: .milliseconds(300))
         XCTAssertFalse(notice.value)
     }
 }

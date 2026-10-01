@@ -250,7 +250,7 @@ final class CursorProvider: ProviderRuntime {
         return try await withThrowingTaskGroup(of: CursorUsageCSVFetch.self) { group in
             group.addTask { .finished(try await client.fetchUsageCSV(accessToken: accessToken, start: start, end: end)) }
             group.addTask {
-                try await Task.sleep(for: .seconds(timeout))
+                try await AsyncDelay.sleep(for: .seconds(timeout))
                 return .timedOut
             }
             defer { group.cancelAll() }

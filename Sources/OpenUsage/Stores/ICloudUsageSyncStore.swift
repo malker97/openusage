@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Perception
 
 struct UsageHistoryLoadResult: Sendable {
     var documents: [UsageHistoryDocument]
@@ -148,7 +148,7 @@ actor ICloudUsageHistoryFileStore: UsageHistoryFileStoring {
 }
 
 @MainActor
-@Observable
+@Perceptible
 final class ICloudUsageSyncStore {
     private static let enabledKey = "openusage.icloudSync.enabled.v1"
     private static let deviceIDKey = "openusage.icloudSync.deviceID.v1"
@@ -157,7 +157,7 @@ final class ICloudUsageSyncStore {
     private let fileStore: any UsageHistoryFileStoring
     private let identityError: String?
     private let dataStore: WidgetDataStore
-    private let writeDebounce: Duration
+    private let writeDebounce: DelayDuration
     private let observesMetadataChanges: Bool
     private var writeTask: Task<Void, Never>?
     private var metadataQuery: NSMetadataQuery?
@@ -184,7 +184,7 @@ final class ICloudUsageSyncStore {
         defaults: UserDefaults = .standard,
         fileStore: any UsageHistoryFileStoring = ICloudUsageHistoryFileStore(),
         deviceIDStore: any ICloudDeviceIDStoring = KeychainICloudDeviceIDStore(),
-        writeDebounce: Duration = .seconds(3),
+        writeDebounce: DelayDuration = .seconds(3),
         observesMetadataChanges: Bool = true
     ) {
         self.dataStore = dataStore
@@ -216,7 +216,7 @@ final class ICloudUsageSyncStore {
         writeTask?.cancel()
         writeTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(for: writeDebounce)
+            try? await AsyncDelay.sleep(for: writeDebounce)
             guard !Task.isCancelled else { return }
             await writeNow()
         }

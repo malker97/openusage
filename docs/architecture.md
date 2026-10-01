@@ -97,11 +97,15 @@ Settings stays mounted after its first visit so returning to it reuses its nativ
 
 ## Platform support
 
-OpenUsage runs on macOS 15 (Sequoia) and later. It is built against the latest SDK and back-deploys:
-on macOS 26 (Tahoe) it uses the system's Liquid Glass controls, and on macOS 15 it falls back to the
-standard controls with the same behavior (the footer still pins, the buttons keep their states). Every
-one of those version checks lives in a single file — `Support/LiquidGlassFallbacks.swift` — so the views
-stay free of `#available` checks.
+This checkout targets macOS 12 (Monterey) and later. It still builds with Swift 6.2 and the macOS 26
+SDK; a newer build machine can produce an app for an older Mac. See [macOS compatibility](compatibility.md)
+for build artifacts, limitations, and the required pre-release smoke test.
+
+Perception back-deploys fine-grained state observation; views wrap model reads in `WithPerceptionTracking`,
+including deferred list and timeline content. `Support/ViewImageRenderer.swift` uses AppKit rasterization
+on Monterey and SwiftUI's ImageRenderer on newer systems. Cosmetic availability checks live in
+`Support/LiquidGlassFallbacks.swift`, `Support/MontereyViewFallbacks.swift`, and the shared theme. Launch at
+Login is available only on macOS 13+, where the system supports the existing login-item API.
 
 The release build (`script/release.sh`) ships a universal binary (arm64 + x86_64), so a single DMG runs
 natively on both Apple Silicon and Intel Macs. The dev build (`script/build_and_run.sh`) stays host-arch

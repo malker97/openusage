@@ -1,11 +1,11 @@
 import AppKit
 import Foundation
-import Observation
+import Perception
 
 /// Installs the bundled one-shot CLI on the stock macOS PATH without copying it out of the app.
 /// The symlink survives in-place Sparkle updates because its destination path stays stable.
 @MainActor
-@Observable
+@Perceptible
 final class CommandLineToolInstaller {
     enum Status: Equatable {
         case notInstalled

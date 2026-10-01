@@ -4,13 +4,16 @@ import PackageDescription
 let package = Package(
     name: "OpenUsage",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v12)
     ],
     products: [
         .executable(name: "OpenUsage", targets: ["OpenUsageApp"]),
         .executable(name: "openusage-cli", targets: ["OpenUsageCLI"])
     ],
     dependencies: [
+        // Observation is only available on macOS 14+. Perception back-deploys the same fine-grained
+        // tracking to Monterey, avoiding a second state model or broad Combine invalidations.
+        .package(url: "https://github.com/pointfreeco/swift-perception", from: "2.0.9"),
         // The de-facto standard recorder + global hotkey for Mac apps (System Settings-style field).
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "3.0.1"),
         // In-app auto-updates (appcast + EdDSA-signed downloads). 2.9.4 fixes the update window opening
@@ -23,6 +26,7 @@ let package = Package(
         .target(
             name: "OpenUsage",
             dependencies: [
+                .product(name: "Perception", package: "swift-perception"),
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "PostHog", package: "posthog-ios")
@@ -56,7 +60,10 @@ let package = Package(
         ),
         .testTarget(
             name: "OpenUsageTests",
-            dependencies: ["OpenUsage"],
+            dependencies: [
+                "OpenUsage",
+                .product(name: "Perception", package: "swift-perception")
+            ],
             path: "Tests/OpenUsageTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6)

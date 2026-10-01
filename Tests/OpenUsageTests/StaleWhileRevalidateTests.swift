@@ -1,4 +1,4 @@
-import Observation
+import Perception
 import os
 import XCTest
 @testable import OpenUsage
@@ -166,8 +166,8 @@ final class StaleWhileRevalidateTests: XCTestCase {
 
         // Lock-boxed because `onChange` is `@Sendable`; it fires synchronously during the write
         // (if any), so reading it after the pass is deterministic.
-        let snapshotsInvalidated = OSAllocatedUnfairLock(initialState: false)
-        withObservationTracking {
+        let snapshotsInvalidated = Locked(initialState: false)
+        withPerceptionTracking {
             _ = store.snapshots
         } onChange: {
             snapshotsInvalidated.withLock { $0 = true }
@@ -236,9 +236,9 @@ final class StaleWhileRevalidateTests: XCTestCase {
         let task = Task {
             await store.refresh(providerID: provider.id, force: true)
         }
-        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while !runtime.isWaiting, ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(1))
+        let deadline = DispatchTime.now().uptimeNanoseconds + DelayDuration.seconds(2).nanoseconds
+        while !runtime.isWaiting, DispatchTime.now().uptimeNanoseconds < deadline {
+            try? await AsyncDelay.sleep(for: .milliseconds(1))
         }
         guard runtime.isWaiting else {
             runtime.resume()

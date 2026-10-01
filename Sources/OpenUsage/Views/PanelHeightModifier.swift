@@ -55,9 +55,9 @@ enum PanelHeightBridge {
     /// Bumped on every panel open and close. A queued height is applied only if the generation is
     /// unchanged between when it was scheduled and when it runs — so a spring morph in flight when the
     /// panel closes can never resize a hidden, or a freshly reopened, panel with a stale height (the
-    /// async hops are otherwise un-cancellable). `OSAllocatedUnfairLock` so the nonisolated `push` and
+    /// async hops are otherwise un-cancellable). `Locked` so the nonisolated `push` and
     /// the main-actor `invalidate` can touch it safely.
-    private static let state = OSAllocatedUnfairLock(initialState: State())
+    private static let state = Locked(initialState: State())
 
     /// Invalidate every in-flight height. Call on panel open and close.
     nonisolated static func invalidate() {

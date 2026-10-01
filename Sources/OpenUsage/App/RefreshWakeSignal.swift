@@ -55,7 +55,7 @@ final class RefreshWakeSignal {
     /// no actor-isolated iterator state has to survive a suspension.
     func waitForWake(timeout: TimeInterval) async {
         let timer = Task { [continuation] in
-            try? await Task.sleep(for: .seconds(timeout))
+            try? await AsyncDelay.sleep(for: .seconds(timeout))
             guard !Task.isCancelled else { return }
             continuation.yield()
         }

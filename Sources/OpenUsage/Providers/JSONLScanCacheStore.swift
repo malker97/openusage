@@ -8,13 +8,13 @@ struct JSONLScanCachePersistence: Sendable {
     var namespace: String
     var schemaVersion: Int
     var directory: URL
-    var writeDebounce: Duration
+    var writeDebounce: DelayDuration
 
     init(
         namespace: String,
         schemaVersion: Int,
         directory: URL = JSONLScanCachePaths.defaultDirectory,
-        writeDebounce: Duration = .seconds(2)
+        writeDebounce: DelayDuration = .seconds(2)
     ) {
         precondition(!namespace.isEmpty)
         precondition(namespace.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" })

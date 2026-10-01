@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Perception
 
 /// Single source of truth for the menu bar's screen-share privacy mode: the persisted "Hide From
 /// Screen Share" preference plus the live is-the-screen-captured signal behind it.
@@ -11,14 +11,14 @@ import Observation
 /// server's watcher notifications (the fast path — private and best-effort, so never relied on
 /// alone). With the setting off the store does no periodic work at all.
 @MainActor
-@Observable
+@Perceptible
 final class MenuBarPrivacyStore {
     static let key = "hideUsageWhileScreenSharing"
 
     /// How often the poll re-checks the watcher flag while the setting is on. Short enough that a
     /// missed notification exposes usage for a few seconds at worst; the check itself is a single
     /// cheap window-server call.
-    static let pollInterval: Duration = .seconds(3)
+    static let pollInterval: DelayDuration = .seconds(3)
 
     /// The persisted preference (default off). Stored here rather than as a view-local `@AppStorage`
     /// so the AppKit strip renderer honors exactly the value the Settings toggle writes. Toggling it
@@ -42,10 +42,10 @@ final class MenuBarPrivacyStore {
     /// True exactly when the menu bar should show the wordmark instead of usage values.
     var concealUsage: Bool { hideUsageWhileScreenSharing && screenIsCaptured }
 
-    @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let probe: @MainActor () -> Bool
-    @ObservationIgnored private let installChangeNotifications: @MainActor (@escaping @Sendable () -> Void) -> Void
-    @ObservationIgnored private var pollTask: Task<Void, Never>?
+    @PerceptionIgnored private let defaults: UserDefaults
+    @PerceptionIgnored private let probe: @MainActor () -> Bool
+    @PerceptionIgnored private let installChangeNotifications: @MainActor (@escaping @Sendable () -> Void) -> Void
+    @PerceptionIgnored private var pollTask: Task<Void, Never>?
 
     /// The probe and notification installer default to the real window-server signal
     /// (`ScreenCaptureProbe`) and are injectable so tests can pin the capture state deterministically.
@@ -88,7 +88,7 @@ final class MenuBarPrivacyStore {
         refreshCaptureState()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: Self.pollInterval)
+                try? await AsyncDelay.sleep(for: Self.pollInterval)
                 guard !Task.isCancelled else { return }
                 self?.refreshCaptureState()
             }

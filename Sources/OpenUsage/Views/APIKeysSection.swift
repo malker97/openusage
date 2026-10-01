@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The per-provider API-key card shown in a provider's Customize detail. A status dot + Edit/Add
 /// button expands the native macOS key field with a clear button and an eye beside it: read-only by default,
@@ -31,6 +32,10 @@ struct APIKeysSection: View {
     private static let inputPlaceholder = "sk-or-v1-…"
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
             Text("API Key")
                 .font(.caption.weight(.semibold))
@@ -113,8 +118,8 @@ struct APIKeysSection: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Rectangle().fill(.fill.quinary))
-        .onChange(of: overrideChecked) { _, isOn in
+        .background(Rectangle().fill(Theme.subtleBackgroundFill))
+        .onChange(of: overrideChecked) { isOn in
             // Flipping into override mode starts a fresh entry; flipping back drops the draft.
             if isOn { input = ""; revealInput = false }
         }

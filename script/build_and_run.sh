@@ -24,11 +24,13 @@ TARGET_NAME="OpenUsage"                 # SwiftPM target / binary name
 APP_DISPLAY="OpenUsage"                 # user-facing app name
 BUNDLE_ID="${BUNDLE_ID:-com.robinebers.openusage.dev}"
 ICLOUD_CONTAINER_ID="iCloud.com.robinebers.openusage.dev"
-MIN_SYSTEM_VERSION="15.0"
 APP_VERSION="0.7.0"
 APP_BUILD="0.7.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/script/macos_support.sh"
+require_build_toolchain
+cd "$ROOT_DIR"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_DISPLAY.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
@@ -70,15 +72,10 @@ chmod +x "$CLI_BINARY"
 # sit one directory below Contents, so give dyld the same embedded-framework location as the app binary.
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$CLI_BINARY"
 
-# SwiftPM stamps LC_BUILD_VERSION's `sdk` field with the deployment target (macOS 15), not the real
-# SDK it compiled against. macOS gates the modern Liquid Glass control appearance (pop-up buttons,
-# pickers, etc.) on the linked SDK — a "15.0" stamp makes AppKit fall back to legacy Aqua controls.
-# Restamp the sdk to 26.0 (Tahoe, where Liquid Glass landed) while keeping minos at MIN_SYSTEM_VERSION
-# so the app still runs on macOS 15 but gets the modern controls. Re-signed below.
-echo "==> stamping linked SDK 26.0 for Liquid Glass controls (minos stays $MIN_SYSTEM_VERSION)"
-vtool -set-build-version macos "$MIN_SYSTEM_VERSION" 26.0 -replace -output "$APP_BINARY.tmp" "$APP_BINARY"
-mv "$APP_BINARY.tmp" "$APP_BINARY"
-chmod +x "$APP_BINARY"
+# Preserve the compiler's deployment target; only restamp the SDK for modern AppKit styling.
+# Never lower minos with vtool to disguise a binary compiled for a newer OS.
+echo "==> stamping linked SDK $LINKED_SDK_VERSION for Liquid Glass controls"
+stamp_linked_sdk "$APP_BINARY"
 # Stage every SwiftPM resource bundle produced by the build (the app's own
 # OpenUsage_OpenUsage.bundle, which carries the provider SVGs + model manifest)
 # into Contents/Resources, the standard app layout. Bundle.openUsageResources
@@ -91,9 +88,7 @@ shopt -u nullglob
 
 # Compile the Icon Composer source (assets/AppIcon.icon) into Assets.car so
 # Tahoe renders the real Liquid Glass icon. CFBundleIconName below must match
-# the .icon file stem ("AppIcon"). The app floor is macOS 15, so a classic .icns
-# fallback is relevant there (the release build supplies one); this dev build only
-# stages the Assets.car and runs on the maintainer's current OS.
+# the .icon file stem ("AppIcon"). Monterey needs the classic .icns too, even when actool succeeds.
 echo "==> compiling app icon (actool)"
 PREBUILT_ICON_DIR="$ROOT_DIR/assets/AppIcon.prebuilt"
 if xcrun actool "$ROOT_DIR/assets/AppIcon.icon" --compile "$APP_RESOURCES" \
@@ -115,6 +110,9 @@ elif [ -f "$PREBUILT_ICON_DIR/Assets.car" ]; then
   [ -f "$PREBUILT_ICON_DIR/AppIcon.icns" ] && cp "$PREBUILT_ICON_DIR/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
 else
   echo "WARNING: actool failed and no prebuilt icon found; continuing without an icon" >&2
+fi
+if [ ! -f "$APP_RESOURCES/AppIcon.icns" ]; then
+  cp "$PREBUILT_ICON_DIR/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
 fi
 
 cat >"$INFO_PLIST" <<PLIST
@@ -140,6 +138,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$MIN_SYSTEM_VERSION</string>
   <key>CFBundleIconName</key>
   <string>AppIcon</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon.icns</string>
   <key>LSUIElement</key>
   <true/>
   <key>NSPrincipalClass</key>
@@ -196,7 +196,7 @@ fi
 # SUFeedURL in the Info.plist above; see UpdaterController).
 "$ROOT_DIR/script/embed_sparkle.sh" "$APP_BUNDLE" "$APP_BINARY" "$CODESIGN_IDENTITY" "--options runtime"
 
-if [ -n "$CODESIGN_IDENTITY" ]; then
+if [ -n "$CODESIGN_IDENTITY" ] && [ "$CODESIGN_IDENTITY" != "-" ]; then
   /usr/bin/codesign --force --options runtime --sign "$CODESIGN_IDENTITY" "$CLI_BINARY" >/dev/null
   # Not --deep: the Sparkle framework is already signed above and must keep that signature.
   /usr/bin/codesign --force --options runtime \
@@ -207,8 +207,10 @@ if [ -n "$CODESIGN_IDENTITY" ]; then
 else
   /usr/bin/codesign --force --sign - "$CLI_BINARY" >/dev/null
   /usr/bin/codesign --force --sign - --entitlements "$SIGN_ENTITLEMENTS" "$APP_BUNDLE" >/dev/null
-  echo "WARNING: no Apple Development identity found; ad-hoc signed." >&2
+  echo "WARNING: using ad-hoc signing; this development build is not notarized." >&2
 fi
+
+"$ROOT_DIR/script/check_macos_support.sh" "$APP_BUNDLE"
 
 launch_app() {
   /usr/bin/open -n "$APP_BUNDLE"

@@ -361,7 +361,7 @@ final class JSONLScanCacheStoreTests: XCTestCase {
         XCTAssertEqual(reloadCounter.count, 0)
     }
 
-    private func makePersistence(writeDebounce: Duration = .seconds(2)) -> JSONLScanCachePersistence {
+    private func makePersistence(writeDebounce: DelayDuration = .seconds(2)) -> JSONLScanCachePersistence {
         JSONLScanCachePersistence(
             namespace: "test",
             schemaVersion: 1,

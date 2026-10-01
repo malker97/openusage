@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Perception
 
 /// The single source of truth for which providers are turned on.
 ///
@@ -20,7 +20,7 @@ import Observation
 /// against it each launch and credential-probes only the never-seen providers, so a user's choice to
 /// keep a known provider off is never overridden.
 @MainActor
-@Observable
+@Perceptible
 final class ProviderEnablementStore {
     private static let disabledStorageKey = "openusage.disabledProviders.v1"
     private static let enabledStorageKey = "openusage.enabledProviders.v1"

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The one-time first-run hint card at the top of the dashboard. Fresh installs start with only the
 /// providers detected on the machine (see `FirstRunSeeder`), so this card tells the user why the list
@@ -14,6 +15,10 @@ struct CustomizeHintCard: View {
     @Environment(LayoutStore.self) private var layout
 
     var body: some View {
+        WithPerceptionTracking { trackedBody }
+    }
+
+    private var trackedBody: some View {
         DismissableHintCard(
             systemImage: "slider.horizontal.3",
             title: "Welcome to OpenUsage",

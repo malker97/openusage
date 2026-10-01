@@ -24,9 +24,9 @@ final class ModelPricing: Sendable {
 
     /// Resolution walks every catalog entry on a fuzzy miss, so memoize per model name. Shared
     /// across threads; a pricing snapshot is immutable so entries never invalidate.
-    private let memo = OSAllocatedUnfairLock<[String: ModelRates?]>(initialState: [:])
+    private let memo = Locked<[String: ModelRates?]>(initialState: [:])
     /// The alias scan walks every rule, and breakdown naming asks for the same slugs row after row.
-    private let canonicalMemo = OSAllocatedUnfairLock<[String: String]>(initialState: [:])
+    private let canonicalMemo = Locked<[String: String]>(initialState: [:])
 
     init(supplement: PricingSupplement, primary: PricingCatalog, secondary: PricingCatalog) {
         self.supplement = supplement

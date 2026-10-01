@@ -21,7 +21,7 @@ struct CopyFeedbackButton: View {
             withAnimation(Motion.spring) { copied = true }
             resetTask?.cancel()
             resetTask = Task {
-                try? await Task.sleep(for: .seconds(1.4))
+                try? await AsyncDelay.sleep(for: .seconds(1.4))
                 guard !Task.isCancelled else { return }
                 withAnimation(.easeOut(duration: 0.18)) { copied = false }
             }
@@ -29,7 +29,7 @@ struct CopyFeedbackButton: View {
             Image(systemName: copied ? "checkmark" : "doc.on.doc")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(copied ? Color.green : Color.secondary)
-                .symbolEffect(.bounce, value: reduceAnimations ? false : copied)
+                .copySymbolBounce(value: reduceAnimations ? false : copied)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }

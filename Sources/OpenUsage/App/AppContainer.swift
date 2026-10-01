@@ -1,11 +1,11 @@
 import Foundation
 import KeyboardShortcuts
-import Observation
+import Perception
 
 /// Composition root: owns the (constant) registry and the (mutable) stores, injected
 /// into the SwiftUI environment.
 @MainActor
-@Observable
+@Perceptible
 final class AppContainer {
     let registry: WidgetRegistry
     let layout: LayoutStore
@@ -162,10 +162,10 @@ final class AppContainer {
                                 AppLog.error(LogTag.plugin("codex"), "post-claim refresh failed \(failures) times; meters may lag until the next cycle")
                                 return
                             }
-                            try? await Task.sleep(for: .seconds(2))
+                            try? await AsyncDelay.sleep(for: .seconds(2))
                         case .skipped:
                             AppLog.info(LogTag.plugin("codex"), "post-claim refresh waiting out an in-flight refresh (attempt \(attempt + 1))")
-                            try? await Task.sleep(for: .seconds(1))
+                            try? await AsyncDelay.sleep(for: .seconds(1))
                         }
                     }
                     AppLog.error(LogTag.plugin("codex"), "post-claim refresh kept being skipped; meters may lag until the next cycle")
@@ -273,7 +273,7 @@ final class AppContainer {
     }
 
     /// Drives live updates: refresh on launch, then again every refresh interval. Each pass honors the
-    /// cache, so it only hits the network once a snapshot has actually expired. `@Observable` propagates
+    /// cache, so it only hits the network once a snapshot has actually expired. `@Perceptible` propagates
     /// the resulting snapshot changes to the menu-bar label and any open widgets, so the UI refreshes on
     /// its own instead of only when the popover opens.
     ///

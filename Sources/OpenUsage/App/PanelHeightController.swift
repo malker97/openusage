@@ -98,7 +98,7 @@ final class PanelHeightController {
     private func scheduleMorphSettle() {
         morphSettleTask?.cancel()
         morphSettleTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(120))
+            try? await AsyncDelay.sleep(for: .milliseconds(120))
             guard !Task.isCancelled, let self, self.panel.isVisible else { return }
             self.isMorphing = false
             // Rebuilding the shadow for every interpolated frame competes with the page animation.

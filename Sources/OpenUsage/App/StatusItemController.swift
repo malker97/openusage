@@ -1,6 +1,7 @@
 import AppKit
 import KeyboardShortcuts
 import SwiftUI
+import Perception
 
 /// The dashboard's host window: a borderless, **non-activating** panel that can still become key.
 ///
@@ -200,7 +201,7 @@ final class StatusItemController: NSObject {
     private var hasAppliedTransparency = false
 
     /// Applies the resolved transparency style to the panel and re-arms on the next change. Mirrors
-    /// `StatusItemImageUpdater.update()`'s `withObservationTracking` re-arm (its `onChange` is
+    /// `StatusItemImageUpdater.update()`'s `withPerceptionTracking` re-arm (its `onChange` is
     /// one-shot). Reads the
     /// store's `effectiveStyle`, which folds in the persisted toggle, the egg state, and the system
     /// accessibility flags — so this fires whenever any of them changes. Backdrop already exists (it's a
@@ -210,7 +211,7 @@ final class StatusItemController: NSObject {
     /// ~0.55s group, matching the SwiftUI side (`tooMuchTransparency`'s `.animation`), so toggling the
     /// egg or Increase Transparency fades in and out instead of snapping.
     private func applyTransparency() {
-        let style = withObservationTracking {
+        let style = withPerceptionTracking {
             container.transparency.effectiveStyle
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in

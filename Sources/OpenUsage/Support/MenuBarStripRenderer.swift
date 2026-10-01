@@ -41,13 +41,12 @@ enum MenuBarStripRenderer {
     /// extra-large gap next to neighboring items).
     static func textImage(for content: MenuBarContent) -> NSImage? {
         guard !content.isEmpty else { return nil }
-        let renderer = ImageRenderer(content: MenuBarTextStrip(content: content))
-        renderer.scale = 2
-        guard let rendered = renderer.cgImage else { return nil }
+        let scale: CGFloat = 2
+        guard let rendered = ViewImageRenderer.cgImage(for: MenuBarTextStrip(content: content), scale: scale) else { return nil }
         let cgImage = trimmedToVisibleContent(rendered) ?? rendered
         let image = NSImage(
             cgImage: cgImage,
-            size: NSSize(width: CGFloat(cgImage.width) / renderer.scale, height: CGFloat(cgImage.height) / renderer.scale)
+            size: NSSize(width: CGFloat(cgImage.width) / scale, height: CGFloat(cgImage.height) / scale)
         )
         image.isTemplate = true
         image.accessibilityDescription = content.accessibilityText
@@ -93,9 +92,8 @@ enum MenuBarStripRenderer {
     static func barsImage(for content: MenuBarContent) -> NSImage? {
         let fractions = content.bars.map(\.fraction)
         guard !fractions.isEmpty else { return nil }
-        let renderer = ImageRenderer(content: MenuBarBars(fractions: fractions, side: 18))
-        renderer.scale = 2
-        guard let image = renderer.nsImage else { return nil }
+        guard let rendered = ViewImageRenderer.cgImage(for: MenuBarBars(fractions: fractions, side: 18), scale: 2) else { return nil }
+        let image = NSImage(cgImage: rendered, size: NSSize(width: 18, height: 18))
         image.isTemplate = true
         image.accessibilityDescription = content.accessibilityText
         return image
@@ -106,13 +104,12 @@ enum MenuBarStripRenderer {
     /// counts or spend. Deterministic, so rendered once; `nil` only if `ImageRenderer` fails entirely
     /// (caller falls back to the app icon).
     static let privacyImage: NSImage? = {
-        let renderer = ImageRenderer(content: MenuBarPrivacyLabel())
-        renderer.scale = 2
-        guard let rendered = renderer.cgImage else { return nil }
+        let scale: CGFloat = 2
+        guard let rendered = ViewImageRenderer.cgImage(for: MenuBarPrivacyLabel(), scale: scale) else { return nil }
         let cgImage = trimmedToVisibleContent(rendered) ?? rendered
         let image = NSImage(
             cgImage: cgImage,
-            size: NSSize(width: CGFloat(cgImage.width) / renderer.scale, height: CGFloat(cgImage.height) / renderer.scale)
+            size: NSSize(width: CGFloat(cgImage.width) / scale, height: CGFloat(cgImage.height) / scale)
         )
         image.isTemplate = true
         image.accessibilityDescription = "OpenUsage, usage hidden while the screen is shared"
@@ -264,19 +261,41 @@ private struct MenuBarBars: View {
     }
 
     private func bar(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, leading: CGFloat, trailing: CGFloat) -> Path {
-        UnevenRoundedRectangle(
-            topLeadingRadius: leading,
-            bottomLeadingRadius: leading,
-            bottomTrailingRadius: trailing,
-            topTrailingRadius: trailing
-        )
-        .path(in: CGRect(x: x, y: y, width: w, height: h))
+        MenuBarBarGeometry.path(in: CGRect(x: x, y: y, width: w, height: h), leading: leading, trailing: trailing)
     }
 }
 
 /// Pure fill geometry for the Bars glyph, factored out so the near-full quantization and minimum-visible
 /// remainder rules are unit-testable. A 1:1 port of the original OpenUsage tray math.
 enum MenuBarBarGeometry {
+    /// Preserve the native shape on newer systems and the asymmetric bar ends on Monterey.
+    static func path(in rect: CGRect, leading: CGFloat, trailing: CGFloat) -> Path {
+        if #available(macOS 13, *) {
+            return UnevenRoundedRectangle(
+                topLeadingRadius: leading, bottomLeadingRadius: leading,
+                bottomTrailingRadius: trailing, topTrailingRadius: trailing
+            ).path(in: rect)
+        }
+        return legacyPath(in: rect, leading: leading, trailing: trailing)
+    }
+
+    static func legacyPath(in rect: CGRect, leading: CGFloat, trailing: CGFloat) -> Path {
+        let limit = min(rect.width, rect.height) / 2
+        let left = min(leading, limit), right = min(trailing, limit)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + left, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - right, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + right), control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - right))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - right, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + left, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - left), control: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + left))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + left, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
+        path.closeSubpath()
+        return path
+    }
+
     struct Fill: Equatable {
         let fillW: CGFloat
         let remainderW: CGFloat

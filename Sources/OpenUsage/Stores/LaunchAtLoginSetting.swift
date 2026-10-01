@@ -1,12 +1,17 @@
-import Observation
+import Perception
 import ServiceManagement
 
 /// Keeps the Launch at Login switch aligned with macOS without treating a failed rollback as a
 /// second user action.
 @MainActor
-@Observable
+@Perceptible
 final class LaunchAtLoginSetting {
     static let failureMessage = "macOS wouldn't update Launch at Login. Check System Settings → Login Items."
+
+    static var isSupported: Bool {
+        if #available(macOS 13, *) { return true }
+        return false
+    }
 
     private(set) var isEnabled: Bool
     private(set) var errorMessage: String?
@@ -15,8 +20,14 @@ final class LaunchAtLoginSetting {
     private let setSystemEnabled: (Bool) throws -> Void
 
     init(
-        currentStatus: @escaping () -> Bool = { SMAppService.mainApp.status == .enabled },
+        currentStatus: @escaping () -> Bool = {
+            if #available(macOS 13, *) { return SMAppService.mainApp.status == .enabled }
+            return false
+        },
         setEnabled: @escaping (Bool) throws -> Void = { enabled in
+            guard #available(macOS 13, *) else {
+                throw LaunchAtLoginUnavailable()
+            }
             if enabled {
                 try SMAppService.mainApp.register()
             } else {
@@ -36,6 +47,8 @@ final class LaunchAtLoginSetting {
         isEnabled = enabled
         errorMessage = nil
     }
+
+    private struct LaunchAtLoginUnavailable: Error {}
 
     func update(to enabled: Bool) {
         guard enabled != isEnabled else { return }

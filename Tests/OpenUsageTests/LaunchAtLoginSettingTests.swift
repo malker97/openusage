@@ -1,4 +1,4 @@
-import Observation
+import Perception
 import os
 import XCTest
 @testable import OpenUsage
@@ -78,8 +78,8 @@ final class LaunchAtLoginSettingTests: XCTestCase {
             currentStatus: { false },
             setEnabled: { _ in XCTFail("Refreshing must not update the login item") }
         )
-        let invalidated = OSAllocatedUnfairLock(initialState: false)
-        withObservationTracking {
+        let invalidated = Locked(initialState: false)
+        withPerceptionTracking {
             _ = setting.isEnabled
         } onChange: {
             invalidated.withLock { $0 = true }

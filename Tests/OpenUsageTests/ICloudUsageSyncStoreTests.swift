@@ -30,7 +30,7 @@ final class ICloudUsageSyncStoreTests: XCTestCase {
         sync.scheduleWrite()
         sync.scheduleWrite()
         try await waitUntil { await fileStore.writeCount == 2 }
-        try await Task.sleep(for: .milliseconds(40))
+        try await AsyncDelay.sleep(for: .milliseconds(40))
 
         let writeCount = await fileStore.writeCount
         XCTAssertEqual(writeCount, 2)
@@ -156,7 +156,7 @@ final class ICloudUsageSyncStoreTests: XCTestCase {
         defaults: UserDefaults,
         fileStore: RecordingHistoryFileStore,
         deviceIDStore: MemoryDeviceIDStore = MemoryDeviceIDStore(),
-        writeDebounce: Duration = .seconds(3)
+        writeDebounce: DelayDuration = .seconds(3)
     ) -> ICloudUsageSyncStore {
         let dataStore = WidgetDataStore(
             registry: WidgetRegistry(providers: [], descriptors: []),
@@ -182,14 +182,13 @@ final class ICloudUsageSyncStoreTests: XCTestCase {
     }
 
     private func waitUntil(
-        timeout: Duration = .seconds(2),
+        timeout: DelayDuration = .seconds(2),
         condition: @escaping () async -> Bool
     ) async throws {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: timeout)
-        while clock.now < deadline {
+        let deadline = DispatchTime.now().uptimeNanoseconds + timeout.nanoseconds
+        while DispatchTime.now().uptimeNanoseconds < deadline {
             if await condition() { return }
-            try await Task.sleep(for: .milliseconds(10))
+            try await AsyncDelay.sleep(for: .milliseconds(10))
         }
         XCTFail("Condition was not met before timeout")
     }
