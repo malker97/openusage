@@ -8,7 +8,7 @@ final class LegacyProxyCredentialDelegate: NSObject, URLSessionTaskDelegate, Sen
     init(proxy: ProxyConfig) { self.proxy = proxy }
 
     func credential(for space: URLProtectionSpace, previousFailures: Int) -> URLCredential? {
-        guard space.isProxy, previousFailures == 0,
+        guard space.isProxy(), previousFailures == 0,
               space.authenticationMethod != NSURLAuthenticationMethodServerTrust,
               space.authenticationMethod != NSURLAuthenticationMethodClientCertificate,
               space.host.caseInsensitiveCompare(proxy.host) == .orderedSame,
