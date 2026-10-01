@@ -64,7 +64,7 @@ final class ModelPricingStoreTests: XCTestCase {
         let body: String
         if request.url.absoluteString.contains("litellm") {
             body = litellmFeed
-        } else if request.url.host() == "models.dev" {
+        } else if request.url.host == "models.dev" {
             body = modelsDevFeed
         } else {
             body = supplementFeed

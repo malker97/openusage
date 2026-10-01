@@ -38,15 +38,26 @@ struct URLSessionHTTPClient: HTTPClient {
     /// One session for every provider request, built once with the optional `~/.openusage/config.json`
     /// proxy applied (see `ProxyConfig`). Default configuration — same cookie/cache semantics as
     /// `URLSession.shared` — when no valid proxy is configured.
-    private static let session: URLSession = {
+    private static let session: Result<URLSession, ProxyConfigurationError> = {
         let configuration = URLSessionConfiguration.default
+        var delegate: LegacyProxyCredentialDelegate?
         if let proxy = ProxyConfig.current {
-            configuration.proxyConfigurations = [proxy.proxyConfiguration()]
+            if #available(macOS 14, *) {
+                configuration.proxyConfigurations = [proxy.proxyConfiguration()]
+            } else {
+                do {
+                    configuration.connectionProxyDictionary = try proxy.legacyProxyDictionary()
+                    delegate = LegacyProxyCredentialDelegate(proxy: proxy)
+                } catch {
+                    AppLog.error(.config, "proxy configuration: \(error.localizedDescription)")
+                    return .failure(.tlsProxyRequiresSonoma)
+                }
+            }
             // Record that a proxy is in effect (useful in a support log). Scheme/host/port only —
             // any embedded `user:pass` lives in separate fields and is never logged.
             AppLog.info(.config, "proxy enabled \(proxy.scheme.rawValue)://\(proxy.host):\(proxy.port)")
         }
-        return URLSession(configuration: configuration)
+        return .success(URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil))
     }()
 
     /// Loopback-only session: ephemeral (no shared cookie/cache state), no proxy (localhost), and a
@@ -63,7 +74,7 @@ struct URLSessionHTTPClient: HTTPClient {
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
 
-        let session = allowsInsecureLoopback ? Self.loopbackSession : Self.session
+        let session = try allowsInsecureLoopback ? Self.loopbackSession : Self.session.get()
         let (data, response) = try await session.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse else {
             throw HTTPClientError.invalidResponse

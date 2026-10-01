@@ -22,6 +22,7 @@ enum TimeFormatSetting: String, Hashable, Sendable, CaseIterable, UserDefaultsBa
 
     /// Short time string ("5:30 PM" / "17:30") honoring the override, via the locale's hour cycle.
     func shortTime(_ date: Date, base: Locale = .current) -> String {
+        guard #available(macOS 13, *) else { return legacyShortTime(date, base: base) }
         var components = Locale.Components(locale: base)
         switch self {
         case .auto:
@@ -34,5 +35,17 @@ enum TimeFormatSetting: String, Hashable, Sendable, CaseIterable, UserDefaultsBa
         return date.formatted(
             Date.FormatStyle(date: .omitted, time: .shortened, locale: Locale(components: components))
         )
+    }
+
+    /// A localized template preserves the locale's ordering of hour, minute and day period.
+    func legacyShortTime(_ date: Date, base: Locale) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = base
+        switch self {
+        case .auto: formatter.timeStyle = .short
+        case .twelveHour: formatter.setLocalizedDateFormatFromTemplate("hm")
+        case .twentyFourHour: formatter.setLocalizedDateFormatFromTemplate("Hm")
+        }
+        return formatter.string(from: date)
     }
 }

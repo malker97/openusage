@@ -138,7 +138,7 @@ struct GrokAuthStore: Sendable {
         if let oidcClientID = trimmed(entry.oidcClientID) {
             return oidcClientID
         }
-        let parts = entryKey.split(separator: "::", omittingEmptySubsequences: false)
+        let parts = entryKey.components(separatedBy: "::")
         if let last = parts.last {
             let value = String(last).trimmingCharacters(in: .whitespacesAndNewlines)
             if !value.isEmpty { return value }

@@ -2,7 +2,7 @@
 
 OpenUsage can route all provider requests through an optional proxy.
 
-- Supported: `socks5://`, `http://`, `https://`
+- Supported: `socks5://`, `http://`, `https://` (TLS connections to the proxy itself require macOS 14+)
 - Config file: `~/.openusage/config.json`
 - Default: off
 - UI: none — file only
@@ -36,6 +36,7 @@ When the URL has no port, the scheme's default applies (socks5 → 1080, http �
 - The config is read once at launch — **restart OpenUsage after changing the file**.
 - `localhost`, `127.0.0.1`, and `::1` always bypass the proxy (the [local HTTP API](local-http-api.md) is unaffected).
 - A missing, disabled, invalid, or unreadable config simply leaves proxying off.
+- On macOS 12–13, use `socks5://` or `http://`; an HTTP proxy can still tunnel HTTPS provider requests securely. A configured `https://` proxy produces a clear error instead of silently sending requests directly.
 
 ## Scope
 

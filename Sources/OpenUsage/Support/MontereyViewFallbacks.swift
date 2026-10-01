@@ -3,6 +3,15 @@ import SwiftUI
 /// Cosmetic APIs that arrived after Monterey. Keep the functional controls on macOS 12.
 extension View {
     @ViewBuilder
+    func plainButtonMenuStyle() -> some View {
+        if #available(macOS 13, *) {
+            menuStyle(.button)
+        } else {
+            menuStyle(.borderlessButton)
+        }
+    }
+
+    @ViewBuilder
     func numericTextTransition() -> some View {
         if #available(macOS 14, *) {
             contentTransition(.numericText())

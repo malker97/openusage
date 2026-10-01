@@ -13,7 +13,9 @@ on systems older than macOS 14. Monterey uses AppKit to render menu-bar images a
 
 **Launch at Login requires macOS 13 or later.** On Monterey, Settings explains that limitation instead
 of offering a non-working switch. You can add the app manually in **System Preferences → Users &
-Groups → Login Items**. Providers and their own coding tools may have separate OS requirements.
+Groups → Login Items**. TLS connections to an `https://` proxy require macOS 14; `http://` and
+`socks5://` proxies are supported on Monterey (see [Proxy](proxy.md)). Providers and their own coding
+tools may have separate OS requirements.
 
 ## Build Without Upgrading the Target Mac
 

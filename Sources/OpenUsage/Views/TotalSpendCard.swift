@@ -99,7 +99,7 @@ struct TotalSpendCard: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .menuStyle(.button)
+        .plainButtonMenuStyle()
         .buttonStyle(.plain)
         .accessibilityLabel("Total Spend Metric")
         .accessibilityValue(metric.title)

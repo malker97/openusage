@@ -71,7 +71,7 @@ struct HeaderView: View {
             .frame(height: Self.controlHeight)
             .contentShape(Rectangle())
         }
-        .menuStyle(.button)
+        .plainButtonMenuStyle()
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
