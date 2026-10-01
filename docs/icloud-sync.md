@@ -35,9 +35,16 @@ calendar window used by the local history scanners.
 This Mac updates its file after a five-minute refresh batch, a manual refresh, or a provider enablement
 change. iCloud delivery is eventually consistent, so another Mac can take longer than five minutes to
 receive it, especially while offline. OpenUsage requests downloads for remote-only history files,
-watches both private iCloud data and Documents, and retries outstanding downloads every five seconds.
-Settings shows when Mac updates are still waiting to download. A cached older file can remain visible
-until its newer version arrives.
+watches its own history files in private iCloud data and Documents, and retries outstanding downloads
+every five seconds. Failed downloads back off to once a minute instead of retrying on every metadata
+change. Settings shows when Mac updates are still waiting to download.
+
+If iCloud cannot download an update, previously downloaded, valid history stays visible with a warning
+that it may be out of date. Download errors do not count as malformed JSON or remove a readable Mac.
+Low disk space gets a specific warning: free space on this Mac before expecting new updates. iCloud
+can require a safety reserve much larger than the small history file itself. After space is available,
+the app retries and removes the warning when current data arrives. Truly malformed files are still
+ignored and logged.
 
 Settings lists each valid device file with the time that Mac generated it. To remove a Mac from the
 combined summary, turn sync off on that Mac; this deletes its file from iCloud. Turning sync off also

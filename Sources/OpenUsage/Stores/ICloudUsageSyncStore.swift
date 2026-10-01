@@ -5,6 +5,21 @@ struct UsageHistoryLoadResult: Sendable {
     var documents: [UsageHistoryDocument]
     var invalidFileMessages: [String]
     var pendingDownloadCount: Int = 0
+    var downloadFailures: [UsageHistoryDownloadFailure] = []
+}
+
+struct UsageHistoryDownloadFailure: Sendable {
+    var filename: String
+    var message: String
+    var isInsufficientDiskSpace: Bool
+
+    init(url: URL, error: Error) {
+        filename = url.lastPathComponent
+        message = error.localizedDescription
+        let nsError = error as NSError
+        isInsufficientDiskSpace = nsError.domain == NSCocoaErrorDomain
+            && nsError.code == CocoaError.Code.fileWriteOutOfSpace.rawValue
+    }
 }
 
 protocol UsageHistoryFileStoring: Sendable {
@@ -85,6 +100,7 @@ final class ICloudUsageSyncStore {
     }
     private(set) var isSyncing = false
     private(set) var pendingDownloadCount = 0
+    private(set) var downloadFailures: [UsageHistoryDownloadFailure] = []
     let usesDevelopmentContainer = (try? ICloudUsageHistoryFileStore.containerIdentifier(
         in: Bundle.main.infoDictionary ?? [:]
     )) == "iCloud.com.robinebers.openusage.dev"
@@ -147,6 +163,7 @@ final class ICloudUsageSyncStore {
             downloadReloadTask?.cancel()
             downloadReloadTask = nil
             pendingDownloadCount = 0
+            downloadFailures = []
             stopObserving()
             dataStore.clearPeerHistoryDocuments()
             documents = []
@@ -197,12 +214,21 @@ final class ICloudUsageSyncStore {
                 }
                 documents = newest
                 pendingDownloadCount = result.pendingDownloadCount
+                downloadFailures = result.downloadFailures
                 scheduleDownloadReload()
                 invalidFileMessages = result.invalidFileMessages
                 dataStore.setPeerHistoryDocuments(result.documents, ownDeviceID: deviceID)
-                operationError = result.invalidFileMessages.isEmpty
-                    ? nil
-                    : "Some synced usage data couldn’t be read. Check the log for details."
+                if result.downloadFailures.contains(where: \.isInsufficientDiskSpace) {
+                    operationError = "iCloud updates are paused because this Mac is low on disk space. "
+                        + "Free some space. Previously downloaded history may be out of date."
+                } else if !result.downloadFailures.isEmpty {
+                    operationError = "iCloud couldn’t download the latest Mac updates. "
+                        + "Previously downloaded history may be out of date. Check the log for details."
+                } else {
+                    operationError = result.invalidFileMessages.isEmpty
+                        ? nil
+                        : "Some synced usage data couldn’t be read. Check the log for details."
+                }
             } catch {
                 report(error, context: "read")
             }
@@ -218,8 +244,9 @@ final class ICloudUsageSyncStore {
         guard downloadReloadTask == nil else { return }
         // Metadata notifications are the primary signal. Retry while downloads are outstanding too,
         // so an initial download cannot depend on receiving a particular query notification.
+        let retryDelay: DelayDuration = downloadFailures.isEmpty ? .seconds(5) : .seconds(60)
         downloadReloadTask = Task { [weak self] in
-            do { try await AsyncDelay.sleep(for: .seconds(5)) }
+            do { try await AsyncDelay.sleep(for: retryDelay) }
             catch { return }
             guard let self else { return }
             self.downloadReloadTask = nil
@@ -274,10 +301,22 @@ final class ICloudUsageSyncStore {
     private func startObserving() {
         guard observesMetadataChanges else { return }
         guard metadataQuery == nil else { return }
+        let identifier: String
+        do { identifier = try ICloudUsageHistoryFileStore.containerIdentifier(in: Bundle.main.infoDictionary ?? [:]) }
+        catch {
+            metadataError = error.localizedDescription
+            AppLog.warn(.config, "iCloud history monitoring configuration failed: \(error.localizedDescription)")
+            return
+        }
         let query = NSMetadataQuery()
-        // History is app-private data, outside the container's Documents directory.
+        // History is app-private data, outside Documents. Ignore unrelated iCloud JSON changes so
+        // they cannot trigger repeated download attempts while this container is stalled.
         query.searchScopes = [NSMetadataQueryUbiquitousDataScope, NSMetadataQueryUbiquitousDocumentsScope]
-        query.predicate = NSPredicate(format: "%K LIKE '*.json'", NSMetadataItemFSNameKey)
+        let historyPath = "/\(identifier.replacingOccurrences(of: ".", with: "~"))/OpenUsage/History/v1/"
+        query.predicate = NSPredicate(
+            format: "%K LIKE '*.json' AND %K CONTAINS %@",
+            NSMetadataItemFSNameKey, NSMetadataItemPathKey, historyPath
+        )
         let center = NotificationCenter.default
         notificationTokens = [
             center.addObserver(forName: .NSMetadataQueryDidFinishGathering, object: query, queue: .main) { [weak self] _ in

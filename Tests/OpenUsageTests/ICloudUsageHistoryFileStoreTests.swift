@@ -97,9 +97,94 @@ final class ICloudUsageHistoryFileStoreTests: XCTestCase {
             requestDownload: { _ in throw CocoaError(.fileReadNoPermission) }
         )
         let result = try await store.loadDocuments()
+        XCTAssertTrue(result.invalidFileMessages.isEmpty)
+        XCTAssertEqual(result.downloadFailures.count, 1)
+        XCTAssertEqual(result.downloadFailures[0].filename, "peer.json")
+        XCTAssertEqual(result.pendingDownloadCount, 1)
+    }
+
+    func testLowDiskMetadataErrorKeepsValidatedDownloadedHistory() async throws {
+        let container = try temporaryContainer()
+        defer { try? FileManager.default.removeItem(at: container) }
+        let document = fixture()
+        let store = ICloudUsageHistoryFileStore(
+            containerURL: { container },
+            downloadStatus: { _ in .downloaded },
+            downloadError: { _ in CocoaError(.fileWriteOutOfSpace) },
+            requestDownload: { _ in }
+        )
+        try await store.write(document)
+        let result = try await store.loadDocuments()
+        XCTAssertEqual(result.documents, [document])
+        XCTAssertTrue(result.invalidFileMessages.isEmpty)
+        XCTAssertEqual(result.pendingDownloadCount, 1)
+        XCTAssertTrue(result.downloadFailures[0].isInsufficientDiskSpace)
+    }
+
+    func testFailedDownloadRequestAlsoKeepsValidCachedHistory() async throws {
+        let container = try temporaryContainer()
+        defer { try? FileManager.default.removeItem(at: container) }
+        let document = fixture()
+        let store = ICloudUsageHistoryFileStore(
+            containerURL: { container },
+            downloadStatus: { _ in .downloaded },
+            requestDownload: { _ in throw CocoaError(.fileWriteOutOfSpace) }
+        )
+        try await store.write(document)
+        let result = try await store.loadDocuments()
+        XCTAssertEqual(result.documents, [document])
+        XCTAssertTrue(result.invalidFileMessages.isEmpty)
+        XCTAssertTrue(result.downloadFailures[0].isInsufficientDiskSpace)
+    }
+
+    func testDownloadErrorsBackOffAndRecoverWithoutRestart() async throws {
+        let container = try temporaryContainer()
+        defer { try? FileManager.default.removeItem(at: container) }
+        let clock = Locked(initialState: Date(timeIntervalSince1970: 1_700_000_000))
+        let failing = Locked(initialState: true)
+        let requests = Locked(initialState: 0)
+        let store = ICloudUsageHistoryFileStore(
+            containerURL: { container },
+            downloadStatus: { _ in failing.withLock { $0 } ? .downloaded : .current },
+            downloadError: { _ in failing.withLock { $0 } ? CocoaError(.fileWriteOutOfSpace) : nil },
+            requestDownload: { _ in requests.withLock { $0 += 1 } },
+            now: { clock.withLock { $0 } }
+        )
+        var document = fixture()
+        try await store.write(document)
+        for _ in 0..<3 {
+            let result = try await store.loadDocuments()
+            XCTAssertEqual(result.documents, [document])
+            XCTAssertEqual(result.downloadFailures.count, 1)
+        }
+        XCTAssertEqual(requests.withLock { $0 }, 1)
+        clock.withLock { $0.addTimeInterval(60) }
+        _ = try await store.loadDocuments()
+        XCTAssertEqual(requests.withLock { $0 }, 2)
+
+        failing.withLock { $0 = false }
+        document.updatedAt.addTimeInterval(60)
+        try await store.write(document)
+        let recovered = try await store.loadDocuments()
+        XCTAssertEqual(recovered.documents, [document])
+        XCTAssertEqual(recovered.pendingDownloadCount, 0)
+        XCTAssertTrue(recovered.downloadFailures.isEmpty)
+    }
+
+    func testTransportErrorDoesNotMakeCorruptCachedJSONAcceptable() async throws {
+        let container = try temporaryContainer()
+        defer { try? FileManager.default.removeItem(at: container) }
+        try Data("not JSON".utf8).write(to: container.appendingPathComponent("OpenUsage/History/v1/peer.json"))
+        let store = ICloudUsageHistoryFileStore(
+            containerURL: { container },
+            downloadStatus: { _ in .downloaded },
+            downloadError: { _ in CocoaError(.fileWriteOutOfSpace) },
+            requestDownload: { _ in }
+        )
+        let result = try await store.loadDocuments()
+        XCTAssertTrue(result.documents.isEmpty)
         XCTAssertEqual(result.invalidFileMessages.count, 1)
-        XCTAssertTrue(result.invalidFileMessages[0].contains("peer.json"))
-        XCTAssertEqual(result.pendingDownloadCount, 0)
+        XCTAssertEqual(result.downloadFailures.count, 1)
     }
 
     func testUnrelatedHiddenFilesAreIgnored() async throws {

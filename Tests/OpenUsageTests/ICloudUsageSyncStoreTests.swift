@@ -96,6 +96,27 @@ final class ICloudUsageSyncStoreTests: XCTestCase {
         XCTAssertNotNil(sync.serviceError)
     }
 
+    func testLowDiskWarningKeepsPeerListedAndClearsAfterRecovery() async throws {
+        let defaults = makeDefaults("low-disk")
+        let peer = UsageHistoryDocument(deviceID: "peer", deviceName: "Peer Mac", updatedAt: .now, providers: [:])
+        let failure = UsageHistoryDownloadFailure(url: URL(fileURLWithPath: "/peer.json"), error: CocoaError(.fileWriteOutOfSpace))
+        let fileStore = RecordingHistoryFileStore(seedDocuments: [peer], downloadFailures: [failure])
+        let sync = makeSync(defaults: defaults, fileStore: fileStore, writeDebounce: .milliseconds(10))
+        sync.enabled = true
+        try await waitUntil { await fileStore.writeCount == 1 && !sync.isSyncing }
+        XCTAssertTrue(sync.displayedDocuments.contains { $0.deviceID == "peer" })
+        XCTAssertTrue(sync.serviceError?.contains("disk space") == true)
+        XCTAssertTrue(sync.serviceError?.contains("out of date") == true)
+        XCTAssertTrue(sync.invalidFileMessages.isEmpty)
+
+        await fileStore.clearDownloadFailures()
+        sync.scheduleWrite()
+        try await waitUntil { await fileStore.writeCount == 2 && sync.serviceError == nil && !sync.isSyncing }
+        XCTAssertTrue(sync.displayedDocuments.contains { $0.deviceID == "peer" })
+        sync.enabled = false
+        try await waitUntil { await fileStore.deletedDeviceIDs.contains(sync.deviceID) }
+    }
+
     func testBackgroundReloadShowsSyncActivity() async throws {
         let defaults = makeDefaults("background-sync-activity")
         let fileStore = RecordingHistoryFileStore()
@@ -209,6 +230,7 @@ private final class MemoryDeviceIDStore: ICloudDeviceIDStoring, @unchecked Senda
 private actor RecordingHistoryFileStore: UsageHistoryFileStoring {
     private(set) var documents: [UsageHistoryDocument]
     private(set) var invalidFileMessages: [String]
+    private(set) var downloadFailures: [UsageHistoryDownloadFailure]
     private(set) var writeCount = 0
     private(set) var deletedDeviceIDs: [String] = []
     private let unavailable: Bool
@@ -222,11 +244,17 @@ private actor RecordingHistoryFileStore: UsageHistoryFileStoring {
     init(
         unavailable: Bool = false,
         seedDocuments: [UsageHistoryDocument] = [],
-        invalidFileMessages: [String] = []
+        invalidFileMessages: [String] = [],
+        downloadFailures: [UsageHistoryDownloadFailure] = []
     ) {
         self.unavailable = unavailable
         self.documents = seedDocuments
         self.invalidFileMessages = invalidFileMessages
+        self.downloadFailures = downloadFailures
+    }
+
+    func clearDownloadFailures() {
+        downloadFailures = []
     }
 
     func loadDocuments() async throws -> UsageHistoryLoadResult {
@@ -239,7 +267,10 @@ private actor RecordingHistoryFileStore: UsageHistoryFileStoring {
                 loadGate = continuation
             }
         }
-        return UsageHistoryLoadResult(documents: documents, invalidFileMessages: invalidFileMessages)
+        return UsageHistoryLoadResult(
+            documents: documents, invalidFileMessages: invalidFileMessages,
+            pendingDownloadCount: downloadFailures.count, downloadFailures: downloadFailures
+        )
     }
 
     func write(_ document: UsageHistoryDocument) async throws {
