@@ -45,7 +45,7 @@ struct SettingsScreen: View {
     /// Fills the region the dashboard's pinned footer leaves. Same scroller treatment as Customize:
     /// the overlay scroller stays (the scroll edge effect needs it) but is invisible.
     var body: some View {
-        WithPerceptionTracking {
+        PerceptionScope {
             PopoverScrollView(resetID: scrollResetID) {
                 content
             }

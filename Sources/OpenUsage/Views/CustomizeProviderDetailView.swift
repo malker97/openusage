@@ -27,7 +27,7 @@ struct CustomizeProviderDetailView: View {
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     @ViewBuilder
@@ -73,7 +73,7 @@ struct CustomizeProviderDetailView: View {
                     emptyDropZone(providerID: providerID)
                 } else {
                     ForEach(metrics, id: \.id) { metric in
-                        WithPerceptionTracking { metricRow(metric, in: providerID) }
+                        PerceptionScope { metricRow(metric, in: providerID) }
                     }
                 }
             }
@@ -201,7 +201,7 @@ private struct StarButton: View {
     @State private var shakeTrigger = 0
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     @ViewBuilder

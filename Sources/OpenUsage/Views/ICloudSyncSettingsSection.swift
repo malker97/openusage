@@ -6,7 +6,7 @@ struct ICloudSyncSettingsSection: View {
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
@@ -79,7 +79,7 @@ struct ICloudSyncSettingsSection: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             ForEach(sync.displayedDocuments) { document in
-                WithPerceptionTracking {
+                PerceptionScope {
                     deviceRow(document, isThisMac: document.deviceID == sync.deviceID)
                 }
             }

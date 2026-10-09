@@ -67,7 +67,7 @@ struct DashboardView: View {
     private static let topBarHeight: CGFloat = 44
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
@@ -308,7 +308,7 @@ struct DashboardView: View {
         return ZStack(alignment: .topLeading) {
             HStack(alignment: .top, spacing: 0) {
                 ForEach(pages, id: \.self) { screen in
-                    WithPerceptionTracking {
+                    PerceptionScope {
                         pagerPage(screen, settingsKeptAlive: keepSettings)
                             .frame(width: Self.popoverWidth)
                             .frame(maxHeight: .infinity, alignment: .top)

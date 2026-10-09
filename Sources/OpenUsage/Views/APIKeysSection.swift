@@ -32,7 +32,7 @@ struct APIKeysSection: View {
     private static let inputPlaceholder = "sk-or-v1-…"
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {

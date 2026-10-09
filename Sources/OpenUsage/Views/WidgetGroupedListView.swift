@@ -26,7 +26,7 @@ struct WidgetGroupedListView: View {
     @Environment(\.codexResetClaims) private var codexResetClaims
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
@@ -34,7 +34,7 @@ struct WidgetGroupedListView: View {
         // still read as groups); the exact step comes from the density setting.
         VStack(alignment: .leading, spacing: density.sectionSpacing) {
             ForEach(layout.displayGroups) { group in
-                WithPerceptionTracking { section(group) }
+                PerceptionScope { section(group) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,7 +245,7 @@ struct WidgetGroupedListView: View {
             .opacity(activeMetricID == descriptor.id ? 0 : 1)
             .highPriorityGesture(metricDragGesture(for: descriptor, providerID: providerID))
             .contextMenu {
-                WithPerceptionTracking { rowMenu(descriptor, providerID: providerID) }
+                PerceptionScope { rowMenu(descriptor, providerID: providerID) }
             }
             .reorderFrame(id: descriptor.id, in: .named(reorderSpaceName))
     }

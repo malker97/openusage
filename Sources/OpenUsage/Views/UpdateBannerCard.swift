@@ -15,7 +15,7 @@ struct UpdateBannerCard: View {
     let version: String
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {

@@ -45,7 +45,7 @@ struct TotalSpendCard: View {
     }
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {

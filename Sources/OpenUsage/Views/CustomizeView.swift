@@ -19,7 +19,7 @@ struct CustomizeView: View {
     @State private var frameStore = ReorderFrameStore()
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
@@ -34,7 +34,7 @@ struct CustomizeView: View {
         // as the dashboard's "Copied to clipboard" share pill. Green for a successful star/unstar,
         // orange for the per-provider cap denial.
         .overlay(alignment: .bottom) {
-            WithPerceptionTracking {
+            PerceptionScope {
                 if layout.customizationNotice != nil {
                     customizationNoticePill
                         .padding(.bottom, 12)

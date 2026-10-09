@@ -15,7 +15,7 @@ struct CustomizeHintCard: View {
     @Environment(LayoutStore.self) private var layout
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {

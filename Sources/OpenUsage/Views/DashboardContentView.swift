@@ -18,7 +18,7 @@ struct DashboardContentView: View {
     @AppStorage(TotalSpendSetting.key) private var showTotalSpend = true
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {

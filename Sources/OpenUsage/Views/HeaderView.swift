@@ -37,7 +37,7 @@ struct HeaderView: View {
     private static let controlHeight: CGFloat = 28
 
     var body: some View {
-        WithPerceptionTracking { leadingControl }
+        PerceptionScope { leadingControl }
     }
 
     /// On the dashboard, the Options menu button on one glass capsule.
@@ -58,7 +58,7 @@ struct HeaderView: View {
     /// `.menuIndicator(.hidden)` drops the built-in arrow in favor of our styled chevron.
     private var optionsButton: some View {
         Menu {
-            WithPerceptionTracking { menuItems }
+            PerceptionScope { menuItems }
         } label: {
             HStack(spacing: 5) {
                 Text("Options")

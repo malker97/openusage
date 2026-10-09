@@ -13,7 +13,7 @@ struct PopoverTopBar: View {
 
     @ViewBuilder
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     @ViewBuilder

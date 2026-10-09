@@ -19,14 +19,14 @@ struct CustomizeProviderListView: View {
     private var orderedRows: [ProviderRow] { layout.customizeProviderRows }
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
         VStack(alignment: .leading, spacing: density.sectionSpacing) {
             VStack(spacing: 0) {
                 ForEach(orderedRows) { row in
-                    WithPerceptionTracking { providerRow(row) }
+                    PerceptionScope { providerRow(row) }
                 }
             }
             .cardSurface()

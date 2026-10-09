@@ -22,7 +22,7 @@ struct ScreenCrossLinkRow: View {
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {

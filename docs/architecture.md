@@ -101,11 +101,14 @@ This checkout targets macOS 12 (Monterey) and later. It still builds with Swift 
 SDK; a newer build machine can produce an app for an older Mac. See [macOS compatibility](compatibility.md)
 for build artifacts, limitations, and the required pre-release smoke test.
 
-Perception back-deploys fine-grained state observation; views wrap model reads in `WithPerceptionTracking`,
-including deferred list and timeline content. `Support/ViewImageRenderer.swift` uses AppKit rasterization
-on Monterey and SwiftUI's ImageRenderer on newer systems. Cosmetic availability checks live in
+Perception back-deploys fine-grained state observation; views wrap model reads in `PerceptionScope`
+(`Support/PerceptionScope.swift`), including deferred list and timeline content. Don't use Perception's
+`WithPerceptionTracking`: before macOS 14 it adds an observation on every re-render and drops old ones
+only when their state changes, which leaked hundreds of megabytes a week. `PerceptionScope` keeps one
+observation per view. `Support/ViewImageRenderer.swift` uses AppKit rasterization on Monterey and
+SwiftUI's ImageRenderer on newer systems. Cosmetic availability checks live in
 `Support/LiquidGlassFallbacks.swift`, `Support/MontereyViewFallbacks.swift`, and the shared theme. Launch at
-Login is available only on macOS 13+, where the system supports the existing login-item API.
+Login uses the system login-item API on macOS 13+ and a per-user launcher on Monterey.
 
 The release build (`script/release.sh`) ships a universal binary (arm64 + x86_64), so a single DMG runs
 natively on both Apple Silicon and Intel Macs. The dev build (`script/build_and_run.sh`) stays host-arch

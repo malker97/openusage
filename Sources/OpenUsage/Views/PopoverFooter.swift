@@ -12,7 +12,7 @@ struct PopoverFooter: View {
 
     @ViewBuilder
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
@@ -38,7 +38,7 @@ struct PopoverFooter: View {
             onHeightChange(screen, height)
         }
         .overlay(alignment: .top) {
-            WithPerceptionTracking {
+            PerceptionScope {
                 if screen == .dashboard, layout.shareConfirmation {
                     shareCopiedPill
                         .offset(y: -34)
@@ -84,7 +84,7 @@ struct PopoverFooter: View {
             refreshNow()
         } label: {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                WithPerceptionTracking {
+                PerceptionScope {
                     HStack(spacing: 5) {
                         Text(updateStatusText(now: context.date))
                             .monospacedDigit()

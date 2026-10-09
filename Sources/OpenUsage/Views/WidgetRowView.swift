@@ -48,7 +48,7 @@ struct WidgetRowView: View {
     }
 
     var body: some View {
-        WithPerceptionTracking { trackedBody }
+        PerceptionScope { trackedBody }
     }
 
     private var trackedBody: some View {
@@ -59,7 +59,7 @@ struct WidgetRowView: View {
         Group {
             if data.resetsAt != nil || !data.expiriesAt.isEmpty {
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
-                    WithPerceptionTracking { rowContent }
+                    PerceptionScope { rowContent }
                 }
             } else {
                 rowContent
