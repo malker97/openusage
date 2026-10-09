@@ -130,9 +130,11 @@ On the Monterey host, the fixed build (632) replaced the leaking one:
 | Footprint | 763 MB | 50 MB | 73 MB |
 
 The 23-minute sample covered 32 iCloud reloads and 3 refreshes; the leaking build would have added
-about 400 observations in that time. Growth from 50 to 73 MB came from opening the panel and Settings
-and from the accessibility tree built by UI automation. Over the last seven minutes, the heap grew
-by about 110 KB. Dashboard, Settings, Back, Esc, sync with three Macs, and refreshes all worked.
+about 400 observations in that time. The live heap grew from 19.6 MB to 27.6 MB while the panel,
+Settings, and the UI-automation accessibility tree were first built. After that it stayed flat: 27.77 MB
+at 43 minutes, still with 44 pending observations. The leaking build's live heap was 596 MB. Footprint
+kept rising to 90 MB because the allocator retains memory that refreshes free; most of it is reported as
+reclaimable. Dashboard, Settings, Back, Esc, sync with three Macs, and refreshes all worked.
 
 ## Remaining Checks
 
