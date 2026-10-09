@@ -22,8 +22,18 @@ struct PerceptionScope<Content: View>: View {
     }
 
     var body: Content {
-        if #available(macOS 14, *) { return content() }
+        if #available(macOS 14, *) { return nativelyTrackedContent() }
         return session.track(content)
+    }
+
+    /// Debug builds mark the evaluation the way `WithPerceptionTracking` does, so Perception's check for
+    /// untracked reads stays quiet where SwiftUI already tracks them.
+    private func nativelyTrackedContent() -> Content {
+        #if DEBUG
+        return _PerceptionLocals.$isInPerceptionTracking.withValue(true, operation: content)
+        #else
+        return content()
+        #endif
     }
 }
 
