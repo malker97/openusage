@@ -4,12 +4,12 @@
 
 The complete app builds and tests on GitHub Actions with a Monterey deployment target.
 
-- Source: `da0abd9a` on `malker97/openusage`.
-- [Successful CI run](https://github.com/malker97/openusage/actions/runs/36822302163), manually dispatched
+- Source: `543a5450` on `malker97/openusage`.
+- [Successful CI run](https://github.com/malker97/openusage/actions/runs/37890573339), manually dispatched
   with `package=personal` and `icloud_history=production`; artifact:
   **OpenUsage-Monterey-personal-production-history**.
 - Build host: macOS 26 arm64, Swift 6.3.3, macOS 26.5 SDK.
-- Tests: 1,542 executed, 3 skipped, 0 failures.
+- Tests: 1,547 executed, 3 skipped, 0 failures.
 - The app and CLI are arm64; embedded Sparkle code includes both architectures.
 - Info.plist and every shipped Mach-O passed the macOS 12 deployment check.
 - The dependency lockfile was resolved on CI and committed.
@@ -97,6 +97,42 @@ Verified on the Monterey host:
 
 The Mac's Spotlight index was read-only at the time (likely left over from the earlier low-space
 period), so the new install wasn't searchable yet. Launchpad, Finder, and login launch don't depend on it.
+
+## Memory Leak Found After a Week
+
+After about eight days of continuous running, the installed build had a 763 MB memory footprint. It
+hadn't crashed: the process was still alive, there was no crash or hang report, and the panel still
+opened in about half a second. A heap snapshot showed the cause:
+
+- 113,934 pending Perception observations and 809,925 retained closures (430 MB).
+- 88,615 copies of a single row's density setting storage, plus 9,225 copies of the Settings screen's
+  storage. Each pending observation was holding a copy of the view that created it.
+
+On macOS 13 and earlier, Perception's `WithPerceptionTracking` adds an observation on every re-render
+and removes an older one only when the state it read changes (an open upstream problem,
+pointfreeco/swift-perception#51; 2.0.12 is the latest release). Views re-render for other reasons too.
+Over the week the log recorded 13,522 iCloud reloads, each re-rendering the dashboard (even while it
+was hidden), plus 30-second reset-countdown ticks. Views that read rarely changing state, such as row
+hover state and settings stores, piled up observations. Changing that state, for example by opening
+the panel, flushed thousands at once.
+
+The fix replaces all 31 uses with `PerceptionScope`, which retires the previous observation before
+installing its replacement. Regression tests prove repeated evaluations keep exactly one
+observation, re-evaluation cancels observation of state no longer read, and retiring never triggers an
+extra render. A control test documents the upstream accumulation.
+
+On the Monterey host, the fixed build (632) replaced the leaking one:
+
+| | Leaking build, day 8 | Fixed build, 1 min | Fixed build, 23 min |
+|---|---|---|---|
+| Pending observations | 113,934 | 35 | 44 |
+| Retained closures | 809,925 | 4,067 | 7,447 |
+| Footprint | 763 MB | 50 MB | 73 MB |
+
+The 23-minute sample covered 32 iCloud reloads and 3 refreshes; the leaking build would have added
+about 400 observations in that time. Growth from 50 to 73 MB came from opening the panel and Settings
+and from the accessibility tree built by UI automation. Over the last seven minutes, the heap grew
+by about 110 KB. Dashboard, Settings, Back, Esc, sync with three Macs, and refreshes all worked.
 
 ## Remaining Checks
 
