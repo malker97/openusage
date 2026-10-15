@@ -57,6 +57,9 @@ actor PiUsageScanner {
         var tokens: TokenBreakdown
         /// pi's reported `usage.totalTokens`, shown as the row's token count (matches pi's own footer).
         var reportedTotalTokens: Int
+        /// Request sent → response finished, for the Output Speed row; nil for failed or aborted
+        /// responses. Older cached parses lack it, which only affects files no longer being written.
+        var responseDuration: TimeInterval? = nil
     }
 
     /// Scan the last `daysBack` days of pi logs for one card. Returns nil when pi's sessions directory
@@ -82,10 +85,15 @@ actor PiUsageScanner {
             cacheIdentity: cacheIdentity,
             parse: Self.parseFile
         ), !Task.isCancelled else { return nil }
-        return Self.aggregate(
-            entries: Self.dedup(entries), cardID: cardID, since: since, pricing: pricing,
+        let deduped = Self.dedup(entries)
+        var scan = Self.aggregate(
+            entries: deduped, cardID: cardID, since: since, pricing: pricing,
             estimateCost: estimateCost
         )
+        scan.responseTimings = Self.responseTimings(
+            entries: deduped, cardID: cardID, since: OutputSpeedMapper.windowStart(now: now)
+        )
+        return scan
     }
 
     // MARK: - Parsing
@@ -132,8 +140,22 @@ actor PiUsageScanner {
             model: (message["model"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
             carriedCost: carriedCost,
             tokens: tokens,
-            reportedTotalTokens: Int(ProviderParse.number(usage["totalTokens"]) ?? 0)
+            reportedTotalTokens: Int(ProviderParse.number(usage["totalTokens"]) ?? 0),
+            responseDuration: responseDuration(of: message, finishedAt: timestamp)
         )
+    }
+
+    /// pi times each response itself (`durationMs`, from sending the request to the last token). Versions
+    /// before that field stamp the message with its request time instead, while the session entry is
+    /// written as the response finishes, so the gap between the two is the same span.
+    private static func responseDuration(of message: [String: Any], finishedAt end: Date) -> TimeInterval? {
+        let stopReason = message["stopReason"] as? String
+        guard stopReason != "error", stopReason != "aborted" else { return nil }
+        if let milliseconds = ProviderParse.number(message["durationMs"]) {
+            return milliseconds / 1000
+        }
+        guard let sentMilliseconds = ProviderParse.number(message["timestamp"]) else { return nil }
+        return end.timeIntervalSince1970 - sentMilliseconds / 1000
     }
 
     // MARK: - Dedup and aggregation
@@ -149,6 +171,16 @@ actor PiUsageScanner {
             out.append(entry)
         }
         return out
+    }
+
+    /// The card's timed responses that finished at or after `since`, for the Output Speed row. Unlike the
+    /// spend totals, a response counts whether or not its model can be priced.
+    static func responseTimings(entries: [Entry], cardID: String, since: Date) -> [ResponseTiming] {
+        entries.compactMap { entry in
+            guard entry.cardID == cardID, entry.timestamp >= since, let duration = entry.responseDuration
+            else { return nil }
+            return ResponseTiming(end: entry.timestamp, duration: duration, outputTokens: entry.tokens.output)
+        }
     }
 
     /// Bucket the card's entries into local calendar days. Cost is pi's carried total when it recorded

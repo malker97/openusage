@@ -12,6 +12,7 @@ Tracks your ChatGPT/Codex subscription limits using the login from the Codex CLI
 | Rate Limit Resets | On-demand rate-limit reset credits, shown as a count (e.g. `2 available`) with a colored dot for the soonest expiry; hover the value for a timeline of each credit's expiry |
 | Extra Usage | Flex credits, shown verbatim as dollars + credits (e.g. `$31.84 · 796 credits`) |
 | Today / Yesterday / Last 30 Days | Local spend, as cost, tokens, or both (see below) |
+| Output Speed | Median reply speed in tokens per second over the last five minutes, from local logs (see below) |
 
 When Codex reports your plan name, OpenUsage shows it beside the provider name.
 The usage entitlement `self_serve_business_prolite` displays as **Business Premium**.
@@ -78,6 +79,15 @@ Large session files are read in small chunks instead of being loaded into memory
 individual records are skipped and logged; local spend can be incomplete if a skipped record contained usage.
 
 For supported GPT-5.4, GPT-5.5, GPT-5.6, and GPT-6 models, requests above 272k input tokens use OpenAI's long-context rates for the whole request. These Codex-specific request rules apply consistently to native Codex logs and zero-cost Codex OAuth usage imported from pi or OpenCode. Daybreak Blue usage is priced as GPT-5.6 Sol, matching OpenAI's published alias and Daybreak pricing. Cached input uses the published cache-read discount when the pricing source provides one; otherwise it is estimated at the full input rate. Fast/priority estimates use each model's published Codex multiplier (for example, GPT-5.5 uses 2.5×); Ultrafast is 6× for GPT-6 Astra and uses the Fast multiplier for other models. Model names ending in `-fast` are normalized to their unscaled base rate before that multiplier is applied once.
+
+## Output speed
+
+Codex records when each reply finishes. OpenUsage times a reply from when its request went out — the
+start of the turn, the previous reply finishing, or the last tool result it waited for — to that moment, so
+time spent running tools never counts as model time. Older Codex versions don't record when a reply
+finishes, so their turns aren't timed, and neither is usage imported from OpenCode. pi records each reply's
+duration itself, and those count on the same card. The row shows the median of the replies that finished in
+the five minutes before the refresh; see the [dashboard](../dashboard.md#rows) for what the number includes.
 
 ## Troubleshooting
 

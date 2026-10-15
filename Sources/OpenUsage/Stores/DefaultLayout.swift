@@ -24,10 +24,10 @@ enum DefaultLayout {
         "antigravity.geminiPro", "antigravity.geminiWeekly", "antigravity.claude", "antigravity.claudeWeekly",
         "antigravity.trend", "antigravity.today", "antigravity.yesterday", "antigravity.last30",
 
-        "claude.session", "claude.weekly", "claude.fable", "claude.trend",
+        "claude.session", "claude.weekly", "claude.fable", "claude.trend", "claude.outputSpeed",
         "claude.extra", "claude.rateLimitResets", "claude.today", "claude.yesterday", "claude.last30",
 
-        "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.trend",
+        "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.trend", "codex.outputSpeed",
         "codex.credits", "codex.rateLimitResets", "codex.today", "codex.yesterday", "codex.last30",
 
         "cursor.usage", "cursor.auto", "cursor.api", "cursor.grokBot", "cursor.trend",
@@ -96,11 +96,11 @@ enum DefaultLayout {
         // pool pair and spend-history rows sit below the caret, matching the other local scanners.
         "antigravity.claude", "antigravity.claudeWeekly",
         "antigravity.today", "antigravity.yesterday", "antigravity.last30",
-        // Claude's core meters (Session, Weekly, Fable, Extra, Usage Trend) stay above the fold;
-        // optional Sonnet, reset grants, and spend-history rows sit below the caret.
+        // Claude's core meters (Session, Weekly, Fable, Extra), Usage Trend, and Output Speed stay above
+        // the fold; optional Sonnet, reset grants, and spend-history rows sit below the caret.
         "claude.sonnet", "claude.rateLimitResets", "claude.today", "claude.yesterday", "claude.last30",
-        // Codex's core Session/Weekly meters and Usage Trend stay above the fold; Spark (the optional
-        // model-specific limits), credits, reset details, and spend rows sit below the caret.
+        // Codex's core Session/Weekly meters, Usage Trend, and Output Speed stay above the fold; Spark (the
+        // optional model-specific limits), credits, reset details, and spend rows sit below the caret.
         "codex.spark", "codex.sparkWeekly",
         "codex.credits", "codex.rateLimitResets", "codex.today", "codex.yesterday", "codex.last30",
         "cursor.grokBot", "cursor.onDemand", "cursor.requests", "cursor.credits",

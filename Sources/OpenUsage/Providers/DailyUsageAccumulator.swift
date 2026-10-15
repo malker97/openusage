@@ -38,6 +38,7 @@ struct DailyUsageAccumulator {
     /// `modelUsage`, and unknown-model set stay consistent. Every input must be accumulator-built (its
     /// `series` derived from the same per-model maps), which the native and pi scanners guarantee. Nil
     /// inputs are skipped; returns nil when they are all nil (the provider then folds in nothing).
+    /// Response timings are concatenated: each source times different requests.
     static func merged(_ scans: [LogUsageScan?]) -> LogUsageScan? {
         let present = scans.compactMap { $0 }
         guard !present.isEmpty else { return nil }
@@ -60,7 +61,9 @@ struct DailyUsageAccumulator {
                 }
             }
         }
-        return accumulator.build()
+        var merged = accumulator.build()
+        merged.responseTimings = present.flatMap(\.responseTimings)
+        return merged
     }
 
     /// Note a model with no known price that carried tokens. The warning remains even when an

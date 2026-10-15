@@ -1,12 +1,22 @@
 import Foundation
 
 /// Keeps rollout context alive across bounded JSONL batches without sharing it between files.
+///
+/// It also times each response for the Output Speed row. Newer Codex writes a `token_usage_record` the
+/// moment a response finishes; the matching `token_count` only follows once that response's tool calls
+/// have run, so its own timestamp can't time the model. A request is sent when the turn starts
+/// (`task_started`), when the previous response finishes, or when the last tool output it waits for
+/// lands — whichever came last.
 struct CodexLogFileParser: Sendable {
     private static let turnContextMarker = Data(#""type":"turn_context""#.utf8)
     private static let tokenCountMarker = Data(#""type":"token_count""#.utf8)
     private static let sessionMetaMarker = Data(#""type":"session_meta""#.utf8)
     private static let taskStartedMarker = Data(#""type":"task_started""#.utf8)
     private static let threadSettingsMarker = Data(#""type":"thread_settings_applied""#.utf8)
+    private static let tokenUsageRecordMarker = Data(#""type":"token_usage_record""#.utf8)
+    /// `function_call_output`, `custom_tool_call_output`, and the like. Tool output can be large, so
+    /// these lines are only skimmed for their top-level type and timestamp.
+    private static let toolOutputMarker = Data(#"_call_output""#.utf8)
 
     private var previousTotals: CodexLogUsageScanner.RawUsage?
     private var currentModel: String?
@@ -14,6 +24,10 @@ struct CodexLogFileParser: Sendable {
     private var currentTierIsUltrafast = false
     private var sawSessionMeta = false
     private var replayGate: ChildReplayGate?
+    /// When the next request went out, as far as the log shows so far.
+    private var requestSentAt: Date?
+    /// The latest finished response, waiting for the `token_count` that reports its usage.
+    private var finishedResponse: (start: Date, end: Date, output: Int)?
 
     mutating func parse(_ data: Data) -> [CodexLogUsageScanner.Event] {
         var events: [CodexLogUsageScanner.Event] = []
@@ -21,15 +35,26 @@ struct CodexLogFileParser: Sendable {
         for line in data.split(separator: UInt8(ascii: "\n")) {
             let isTurnContext = line.range(of: Self.turnContextMarker) != nil
             let isSessionMeta = !sawSessionMeta && line.range(of: Self.sessionMetaMarker) != nil
-            let isTaskStarted = replayGate != nil && line.range(of: Self.taskStartedMarker) != nil
+            let isTaskStarted = line.range(of: Self.taskStartedMarker) != nil
             let isThreadSettings = line.range(of: Self.threadSettingsMarker) != nil
-            guard isTurnContext || isSessionMeta || isTaskStarted || isThreadSettings
+            let isTokenUsageRecord = line.range(of: Self.tokenUsageRecordMarker) != nil
+            guard isTurnContext || isSessionMeta || isTaskStarted || isThreadSettings || isTokenUsageRecord
                 || line.range(of: Self.tokenCountMarker) != nil
-            else { continue }
+            else {
+                if replayGate == nil, line.range(of: Self.toolOutputMarker) != nil {
+                    noteToolOutput(line)
+                }
+                continue
+            }
             guard let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { continue }
 
             let type = object["type"] as? String
             let payload = object["payload"] as? [String: Any]
+
+            if isTokenUsageRecord, type == "token_usage_record" {
+                if replayGate == nil { noteFinishedResponse(object: object, payload: payload) }
+                continue
+            }
 
             if type == "turn_context" {
                 if let model = payload.flatMap(Self.modelName(in:)) {
@@ -67,6 +92,10 @@ struct CodexLogFileParser: Sendable {
                    gate.isCleared(byStartedAt: startedAt.doubleValue, lineTimestamp: object["timestamp"] as? String) {
                     replayGate = nil
                 }
+                if replayGate == nil {
+                    requestSentAt = Self.date(object["timestamp"])
+                    finishedResponse = nil
+                }
                 continue
             }
             guard payload["type"] as? String == "token_count",
@@ -102,7 +131,7 @@ struct CodexLogFileParser: Sendable {
             let parsedModel = Self.modelName(in: payload) ?? info.flatMap(Self.modelName(in:))
             let model = CodexLogUsageScanner.resolveModel(parsed: parsedModel, currentModel: &currentModel)
 
-            events.append(CodexLogUsageScanner.Event(
+            var event = CodexLogUsageScanner.Event(
                 timestamp: timestamp,
                 model: model,
                 pricingModel: model == "codex-auto-review"
@@ -115,9 +144,40 @@ struct CodexLogFileParser: Sendable {
                 total: usage.total,
                 isFast: currentTierIsFast,
                 isUltrafast: currentTierIsUltrafast
-            ))
+            )
+            // Only a matching output count proves this usage belongs to the timed response.
+            if let response = finishedResponse, response.output == usage.output {
+                event.responseStart = response.start
+                event.responseEnd = response.end
+            }
+            finishedResponse = nil
+            events.append(event)
         }
         return events
+    }
+
+    /// A tool's output landed, so the request carrying it can't have gone out before now.
+    private mutating func noteToolOutput(_ line: Data) {
+        let fields = JSONTopLevelScalars.values(in: line, keys: ["timestamp", "type"])
+        guard fields["type"] == "response_item", let landed = Self.date(fields["timestamp"]) else { return }
+        requestSentAt = max(requestSentAt ?? landed, landed)
+    }
+
+    /// A response finished: hold its timing for the `token_count` that follows, and treat its end as
+    /// the earliest the next request could have gone out.
+    private mutating func noteFinishedResponse(object: [String: Any], payload: [String: Any]?) {
+        guard let end = Self.date(object["timestamp"]) else { return }
+        let output = ((payload?["usage"] as? [String: Any]).map(CodexLogUsageScanner.RawUsage.init(json:)))?.output
+        if let start = requestSentAt, let output, end > start {
+            finishedResponse = (start, end, output)
+        } else {
+            finishedResponse = nil
+        }
+        requestSentAt = end
+    }
+
+    private static func date(_ value: Any?) -> Date? {
+        (value as? String).flatMap { OpenUsageISO8601.date(from: $0.trimmingCharacters(in: .whitespaces)) }
     }
 
     private static func serviceTier(in payload: [String: Any]?) -> String? {

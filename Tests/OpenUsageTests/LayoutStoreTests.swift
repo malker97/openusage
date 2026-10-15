@@ -660,9 +660,9 @@ final class LayoutStoreTests: XCTestCase {
         let store = LayoutStore(registry: registry, defaults: makeDefaults("RecommendedDefaults"), storageKey: "layout")
 
         XCTAssertEqual(Set(store.placed.map(\.descriptorID)), Set([
-            "claude.session", "claude.weekly", "claude.fable", "claude.trend",
+            "claude.session", "claude.weekly", "claude.fable", "claude.trend", "claude.outputSpeed",
             "claude.extra", "claude.rateLimitResets", "claude.today", "claude.yesterday", "claude.last30",
-            "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.trend",
+            "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.trend", "codex.outputSpeed",
             "codex.credits", "codex.rateLimitResets", "codex.today", "codex.yesterday", "codex.last30",
             "devin.daily", "devin.weekly", "devin.extra",
             "grok.weekly", "grok.trend",
@@ -692,12 +692,14 @@ final class LayoutStoreTests: XCTestCase {
         // Claude's core meters keep Fable directly below Weekly; optional Sonnet and spend-history
         // rows go below the caret.
         XCTAssertEqual(primaryByProvider["claude"], [
-            "claude.session", "claude.weekly", "claude.fable", "claude.extra", "claude.trend"
+            "claude.session", "claude.weekly", "claude.fable", "claude.extra", "claude.trend", "claude.outputSpeed"
         ])
         XCTAssertEqual(expandedByProvider["claude"], [
             "claude.sonnet", "claude.rateLimitResets", "claude.today", "claude.yesterday", "claude.last30"
         ])
-        XCTAssertEqual(primaryByProvider["codex"], ["codex.session", "codex.weekly", "codex.trend"])
+        XCTAssertEqual(primaryByProvider["codex"], ["codex.session", "codex.weekly", "codex.trend", "codex.outputSpeed"])
+        XCTAssertFalse(store.isPinned("claude.outputSpeed"))
+        XCTAssertFalse(store.isPinned("codex.outputSpeed"))
         // Spark (the optional model-specific limits) leads the On Demand section, before credits.
         XCTAssertEqual(expandedByProvider["codex"], [
             "codex.spark", "codex.sparkWeekly",

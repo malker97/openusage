@@ -91,7 +91,8 @@ final class ClaudeProvider: ProviderRuntime {
                     scope: .machineLocal,
                     estimatedCost: true,
                     sourceNote: "From your Claude usage history (estimated)"
-                )
+                ),
+            .values(id: "\(provider.id).outputSpeed", provider: provider, title: OutputSpeedMapper.label, selection: .kind(.count))
         ] + WidgetDescriptor.spendTiles(provider: provider)
     }
 
@@ -331,6 +332,7 @@ final class ClaudeProvider: ProviderRuntime {
                 modelSourceNote: note
             )
             SpendTileMapper.appendUsageTrend(scan.series, to: &mapped.lines, now: now(), note: note)
+            OutputSpeedMapper.appendOutputSpeed(scan.responseTimings, to: &mapped.lines, now: now())
         }
 
         MetricLine.appendNoDataIfNeeded(&mapped.lines)

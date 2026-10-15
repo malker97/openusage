@@ -66,7 +66,8 @@ final class CodexProvider: ProviderRuntime {
                     scope: .machineLocal,
                     estimatedCost: true,
                     sourceNote: "From your Codex logs (estimated)"
-                )
+                ),
+            .values(id: "\(provider.id).outputSpeed", provider: provider, title: OutputSpeedMapper.label, selection: .kind(.count))
         ] + WidgetDescriptor.spendTiles(provider: provider)
     }
 
@@ -193,6 +194,7 @@ final class CodexProvider: ProviderRuntime {
                 scan.series, to: &mapped.lines, now: now(), note: baseNote,
                 fallbackPricingModelsByDay: scan.fallbackPricingModelsByDay
             )
+            OutputSpeedMapper.appendOutputSpeed(scan.responseTimings, to: &mapped.lines, now: now())
         }
 
         MetricLine.appendNoDataIfNeeded(&mapped.lines)

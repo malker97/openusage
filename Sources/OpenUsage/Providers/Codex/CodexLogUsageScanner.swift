@@ -62,6 +62,11 @@ actor CodexLogUsageScanner {
         var total: Int
         var isFast: Bool = false
         var isUltrafast: Bool = false
+        /// When the request behind this turn's response was sent and when the response finished, for
+        /// the Output Speed row (see `CodexLogFileParser`). Nil when the log can't time it; older cached
+        /// parses lack it too, which only affects rollouts no longer being written.
+        var responseStart: Date? = nil
+        var responseEnd: Date? = nil
     }
 
     /// Multi-account cards that resolve the same Codex homes share this actor and parse each rollout
@@ -120,7 +125,20 @@ actor CodexLogUsageScanner {
             initialState: CodexLogFileParser(),
             parse: { data, state in state.parse(data) }
         ), !Task.isCancelled else { return nil }
-        return Self.aggregate(events: events, since: since, pricing: pricing, fallbackModel: fallbackModel)
+        var scan = Self.aggregate(events: events, since: since, pricing: pricing, fallbackModel: fallbackModel)
+        scan.responseTimings = Self.responseTimings(events: events, since: OutputSpeedMapper.windowStart(now: now))
+        return scan
+    }
+
+    /// Timed responses that finished at or after `since`, for the Output Speed row. Copied session logs
+    /// repeat identical timings, which count once — the same rule the spend totals apply to their events.
+    static func responseTimings(events: [Event], since: Date) -> [ResponseTiming] {
+        var seen: Set<ResponseTiming> = []
+        return events.compactMap { event in
+            guard let start = event.responseStart, let end = event.responseEnd, end >= since else { return nil }
+            let timing = ResponseTiming(end: end, duration: end.timeIntervalSince(start), outputTokens: event.output)
+            return seen.insert(timing).inserted ? timing : nil
+        }
     }
 
     // MARK: - Discovery

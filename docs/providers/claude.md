@@ -16,6 +16,7 @@ the same account and organization through both Claude Code and Claude Desktop st
 | Extra Usage | Extra-usage credits spent against your monthly cap |
 | Rate Limit Resets | One-off usage-limit resets Anthropic grants (e.g. a model-launch reset for Pro and Max), shown as a count (e.g. `1 available`); hover the value for a timeline of when each must be used by |
 | Today / Yesterday / Last 30 Days | Local spend, as cost, tokens, or both (see below) |
+| Output Speed | Median reply speed in tokens per second over the last five minutes, from local logs (see below) |
 
 Fable is enabled and always visible directly below Weekly by default. Sonnet stays off until you
 enable it in Customize. Rate Limit Resets is on but tucked behind the caret. When Claude reports your plan name, OpenUsage shows it beside the provider name.
@@ -125,6 +126,15 @@ Their usage appears while they run and is included in the same spend tiles. Exis
 are picked up on the next refresh; there is no need to rerun the workflow or clear the usage cache.
 
 Local spend does not require a Claude OAuth login. If Claude Code uses an API-key gateway instead, the spend tiles and usage trend still load from its session logs; the Claude header shows **Not logged in** because the live Session and Weekly meters still require a Claude subscription login.
+
+## Output speed
+
+Claude Code's logs don't record how long a reply took, so OpenUsage works it out from the conversation
+itself: each reply runs from the line that sent its request — your prompt, a tool result, or the previous
+reply — to the reply's last block. When a request failed and Claude Code retried it, the reply is timed
+from the retry. pi records each reply's duration itself, and those count on the same card. The row shows
+the median of the replies that finished in the five minutes before the refresh; see the
+[dashboard](../dashboard.md#rows) for what the number includes.
 
 ## Troubleshooting
 
