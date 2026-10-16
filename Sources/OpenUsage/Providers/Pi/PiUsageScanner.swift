@@ -27,7 +27,8 @@ actor PiUsageScanner {
 
     private static let sharedScanner = IncrementalJSONLScanner<Entry>(
         logTag: LogTag.plugin("pi"),
-        persistence: JSONLScanCachePersistence(namespace: "pi", schemaVersion: 1)
+        // v2: response durations for the Output Speed row, which reads back across the whole window.
+        persistence: JSONLScanCachePersistence(namespace: "pi", schemaVersion: 2)
     )
 
     static func flushPersistentCacheWrites() async {
@@ -57,8 +58,7 @@ actor PiUsageScanner {
         var tokens: TokenBreakdown
         /// pi's reported `usage.totalTokens`, shown as the row's token count (matches pi's own footer).
         var reportedTotalTokens: Int
-        /// Request sent → response finished, for the Output Speed row; nil for failed or aborted
-        /// responses. Older cached parses lack it, which only affects files no longer being written.
+        /// Request sent → response finished, for the Output Speed row; nil for failed or aborted responses.
         var responseDuration: TimeInterval? = nil
     }
 
@@ -90,9 +90,7 @@ actor PiUsageScanner {
             entries: deduped, cardID: cardID, since: since, pricing: pricing,
             estimateCost: estimateCost
         )
-        scan.responseTimings = Self.responseTimings(
-            entries: deduped, cardID: cardID, since: OutputSpeedMapper.windowStart(now: now)
-        )
+        scan.responseTimings = Self.responseTimings(entries: deduped, cardID: cardID, since: since)
         return scan
     }
 

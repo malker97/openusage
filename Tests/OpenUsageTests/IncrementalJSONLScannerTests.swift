@@ -336,6 +336,38 @@ final class IncrementalJSONLScannerTests: XCTestCase {
         XCTAssertEqual(items, [1, 2])
     }
 
+    func testStatefulParserSeesTheHeadOfAnOversizedRecordInItsPlace() async throws {
+        let directory = try makeDirectory("OversizedRecordHead")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let oversized = "head:" + String(repeating: "x", count: JSONLStreamingReader.maximumRecordBytes)
+        let file = try makeFile(
+            named: "oversized.jsonl",
+            contents: "1\n\(oversized)\n2",
+            in: directory,
+            mtime: Date()
+        )
+        let scanner = IncrementalJSONLScanner<String>()
+
+        // The state holds notes of dropped records until the next batch reports them, so the items show the
+        // order the parser saw everything in.
+        let items = await scanner.items(
+            from: [file],
+            since: .distantPast,
+            initialState: [String](),
+            parse: { data, dropped in
+                defer { dropped.removeAll() }
+                return dropped + String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
+            },
+            skipped: { head, dropped in
+                dropped.append("dropped, head \(head.count) bytes from \(String(decoding: head.prefix(5), as: UTF8.self))")
+            }
+        )
+
+        let head = "dropped, head \(JSONLStreamingReader.skippedRecordHeadBytes) bytes from head:"
+        XCTAssertEqual(items, ["1", head, "2"])
+    }
+
     func testUnreadableFileWarnsOnceUntilItRecovers() async throws {
         let directory = try makeDirectory("Warnings")
         defer { try? FileManager.default.removeItem(at: directory) }

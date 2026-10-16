@@ -63,17 +63,17 @@ actor CodexLogUsageScanner {
         var isFast: Bool = false
         var isUltrafast: Bool = false
         /// When the request behind this turn's response was sent and when the response finished, for
-        /// the Output Speed row (see `CodexLogFileParser`). Nil when the log can't time it; older cached
-        /// parses lack it too, which only affects rollouts no longer being written.
+        /// the Output Speed row (see `CodexLogFileParser`). Nil when the log can't time it.
         var responseStart: Date? = nil
         var responseEnd: Date? = nil
     }
 
     /// Multi-account cards that resolve the same Codex homes share this actor and parse each rollout
     /// once. The version is the parser schema version; bump it when `Event` semantics change.
+    /// v6: response timing for the Output Speed row, which reads back across the whole window.
     private static let sharedScanner = IncrementalJSONLScanner<Event>(
         logTag: LogTag.plugin("codex"),
-        persistence: JSONLScanCachePersistence(namespace: "codex", schemaVersion: 5)
+        persistence: JSONLScanCachePersistence(namespace: "codex", schemaVersion: 6)
     )
 
     static func flushPersistentCacheWrites() async {
@@ -123,10 +123,11 @@ actor CodexLogUsageScanner {
             since: since,
             cacheIdentity: identity,
             initialState: CodexLogFileParser(),
-            parse: { data, state in state.parse(data) }
+            parse: { data, state in state.parse(data) },
+            skipped: { head, state in state.noteSkippedRecord(head) }
         ), !Task.isCancelled else { return nil }
         var scan = Self.aggregate(events: events, since: since, pricing: pricing, fallbackModel: fallbackModel)
-        scan.responseTimings = Self.responseTimings(events: events, since: OutputSpeedMapper.windowStart(now: now))
+        scan.responseTimings = Self.responseTimings(events: events, since: since)
         return scan
     }
 

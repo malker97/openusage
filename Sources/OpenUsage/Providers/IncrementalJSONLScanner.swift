@@ -124,12 +124,14 @@ actor IncrementalJSONLScanner<Item: Codable & Sendable> {
     }
 
     /// Stateful parsers keep one independent state per file while the reader delivers bounded batches.
+    /// `skipped` gets the head of each record too large to read, in its place between those batches.
     func items<State: Sendable>(
         from files: [JSONLScanning.DiscoveredFile],
         since: Date,
         cacheIdentity: String = "default",
         initialState: State,
-        parse: @Sendable @escaping (Data, inout State) -> [Item]?
+        parse: @Sendable @escaping (Data, inout State) -> [Item]?,
+        skipped: @Sendable @escaping (Data, inout State) -> Void = { _, _ in }
     ) async -> [Item]? {
         precondition(!cacheIdentity.isEmpty)
         guard await acquire(cacheIdentity) else { return nil }
@@ -158,7 +160,8 @@ actor IncrementalJSONLScanner<Item: Codable & Sendable> {
             maxConcurrentParses: maxConcurrentParses,
             permitPool: parsePermitPool,
             initialState: initialState,
-            parse: parse
+            parse: parse,
+            skipped: skipped
         )
         guard !Task.isCancelled else { return nil }
         let oversizedRecordCount = parseResults.reduce(0) { $0 + $1.oversizedRecordCount }
@@ -438,7 +441,8 @@ actor IncrementalJSONLScanner<Item: Codable & Sendable> {
         maxConcurrentParses: Int,
         permitPool: JSONLParsePermitPool,
         initialState: State,
-        parse: @Sendable @escaping (Data, inout State) -> [Item]?
+        parse: @Sendable @escaping (Data, inout State) -> [Item]?,
+        skipped: @Sendable @escaping (Data, inout State) -> Void
     ) async -> [(file: JSONLScanning.DiscoveredFile, items: [Item]?, readFailed: Bool, oversizedRecordCount: Int)] {
         await withTaskGroup(
             of: (Int, [Item]?, Bool, Int).self,
@@ -458,7 +462,8 @@ actor IncrementalJSONLScanner<Item: Codable & Sendable> {
                             let streamed = try JSONLStreamingReader.read(
                                 path: file.path,
                                 initialState: initialState,
-                                parse: parse
+                                parse: parse,
+                                skipped: skipped
                             )
                             result = (index, streamed.items, false, streamed.oversizedRecordCount)
                         } catch is CancellationError {

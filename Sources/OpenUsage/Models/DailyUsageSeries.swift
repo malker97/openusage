@@ -110,7 +110,8 @@ struct LogUsageScan: Sendable {
     /// `yyyy-MM-dd` day key → models without known pricing, whether excluded or estimated with a fallback.
     var unknownModelsByDay: [String: Set<String>]
     var fallbackPricingModelsByDay: [String: Set<String>]?
-    /// Responses that finished within the Output Speed window, whether or not their model could be priced.
+    /// Timed responses across the scan window, whether or not their model could be priced. The Output Speed
+    /// row reads the latest five minutes of them.
     var responseTimings: [ResponseTiming] = []
 
     init(

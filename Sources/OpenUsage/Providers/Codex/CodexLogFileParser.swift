@@ -156,11 +156,26 @@ struct CodexLogFileParser: Sendable {
         return events
     }
 
-    /// A tool's output landed, so the request carrying it can't have gone out before now.
+    /// The reader dropped a record too large to keep and handed over its head instead.
+    mutating func noteSkippedRecord(_ head: Data) {
+        guard replayGate == nil, head.range(of: Self.toolOutputMarker) != nil else { return }
+        noteToolOutput(head)
+    }
+
+    /// A tool's output landed, so the request carrying it can't have gone out before then. Codex writes
+    /// each line's timestamp and type first, so the head of a line too large to read still says both. An
+    /// output that can't be dated leaves the next request's start unknown: that response goes untimed
+    /// rather than absorbing the tool's run time.
     private mutating func noteToolOutput(_ line: Data) {
         let fields = JSONTopLevelScalars.values(in: line, keys: ["timestamp", "type"])
-        guard fields["type"] == "response_item", let landed = Self.date(fields["timestamp"]) else { return }
-        requestSentAt = max(requestSentAt ?? landed, landed)
+        switch fields["type"] {
+        case "response_item"?:
+            requestSentAt = Self.date(fields["timestamp"]).map { max(requestSentAt ?? $0, $0) }
+        case nil:
+            requestSentAt = nil
+        default:
+            break
+        }
     }
 
     /// A response finished: hold its timing for the `token_count` that follows, and treat its end as

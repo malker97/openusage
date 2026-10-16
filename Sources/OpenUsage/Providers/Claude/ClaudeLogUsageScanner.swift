@@ -54,8 +54,7 @@ actor ClaudeLogUsageScanner {
         /// `nil` when the line has no model or the placeholder `<synthetic>` (tokens count, cost is $0).
         var model: String?
         /// When this response's request was sent, from the transcript chain (see `ClaudeLogFileParser`);
-        /// nil when the chain can't tell. Older cached parses lack it, which only affects files no
-        /// longer being written — any new line re-parses its file.
+        /// nil when the chain can't tell.
         var requestStart: Date? = nil
     }
 
@@ -65,7 +64,8 @@ actor ClaudeLogUsageScanner {
         logTag: LogTag.plugin("claude"),
         // v2: accept records whose nested `usage.iterations[].model` is null (#1253); cached
         // parses from v1 silently dropped them, so every file must re-parse once.
-        persistence: JSONLScanCachePersistence(namespace: "claude", schemaVersion: 2)
+        // v3: response timing for the Output Speed row, which reads back across the whole window.
+        persistence: JSONLScanCachePersistence(namespace: "claude", schemaVersion: 3)
     )
 
     static func flushPersistentCacheWrites() async {
@@ -146,9 +146,7 @@ actor ClaudeLogUsageScanner {
         ), !Task.isCancelled else { return nil }
         let deduped = Self.dedup(entries)
         var scan = Self.aggregate(entries: deduped, since: since, pricing: pricing)
-        scan.responseTimings = Self.responseTimings(
-            entries: entries, deduped: deduped, since: OutputSpeedMapper.windowStart(now: now)
-        )
+        scan.responseTimings = Self.responseTimings(entries: entries, deduped: deduped, since: since)
         return scan
     }
 

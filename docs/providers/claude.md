@@ -133,8 +133,8 @@ Claude Code's logs don't record how long a reply took, so OpenUsage works it out
 itself: each reply runs from the line that sent its request — your prompt, a tool result, or the previous
 reply — to the reply's last block. When a request failed and Claude Code retried it, the reply is timed
 from the retry. pi records each reply's duration itself, and those count on the same card. The row shows
-the median of the replies that finished in the five minutes before the refresh; see the
-[dashboard](../dashboard.md#rows) for what the number includes.
+the median of the replies that finished in the five minutes up to your latest one, so it keeps your last
+session's speed while you're away; see the [dashboard](../dashboard.md#rows) for what the number includes.
 
 ## Troubleshooting
 

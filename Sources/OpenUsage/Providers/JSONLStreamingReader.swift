@@ -5,16 +5,22 @@ import Foundation
 enum JSONLStreamingReader {
     static let readChunkBytes = 64 * 1024
     static let maximumRecordBytes = 1024 * 1024
+    /// How much of a dropped oversized record its parser still sees: enough for the leading fields, which
+    /// is where a Codex rollout line keeps its timestamp and type.
+    static let skippedRecordHeadBytes = 4 * 1024
 
     struct Result<Item: Sendable>: Sendable {
         var items: [Item]?
         var oversizedRecordCount: Int
     }
 
+    /// `skipped` gets the head of each oversized record in its place: every record before it has already
+    /// been parsed, every record after it hasn't.
     static func read<Item: Sendable, State: Sendable>(
         path: String,
         initialState: State,
-        parse: @Sendable (Data, inout State) -> [Item]?
+        parse: @Sendable (Data, inout State) -> [Item]?,
+        skipped: @Sendable (Data, inout State) -> Void = { _, _ in }
     ) throws -> Result<Item> {
         let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
         defer { try? handle.close() }
@@ -72,6 +78,12 @@ enum JSONLStreamingReader {
                     if fragment.count > maximumRecordBytes - pendingRecord.count {
                         oversizedRecordCount += 1
                         discardingOversizedRecord = true
+                        guard try flushBatch() else {
+                            return Result(items: nil, oversizedRecordCount: oversizedRecordCount)
+                        }
+                        var head = Data(pendingRecord.prefix(skippedRecordHeadBytes))
+                        head.append(fragment.prefix(skippedRecordHeadBytes - head.count))
+                        skipped(head, &state)
                         pendingRecord.removeAll(keepingCapacity: false)
                     } else {
                         pendingRecord.append(contentsOf: fragment)

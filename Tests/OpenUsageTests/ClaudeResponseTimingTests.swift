@@ -135,9 +135,9 @@ final class ClaudeResponseTimingTests: XCTestCase {
             ResponseTiming(end: at(5), duration: 5, outputTokens: 400),
             ResponseTiming(end: at(10), duration: 4, outputTokens: 300)
         ])
-        // Finished more than five minutes before `now`: out of the window.
-        let later = await ClaudeLogFixture.scanner(home: home).scan(now: at(600), pricing: TestPricing.bundled)
-        XCTAssertEqual(later?.responseTimings, [])
+        // An hour on, the scan still hands them over, so the row can keep the last session's speed.
+        let later = await ClaudeLogFixture.scanner(home: home).scan(now: at(3_600), pricing: TestPricing.bundled)
+        XCTAssertEqual(later?.responseTimings, scan?.responseTimings)
     }
 
     func testAReplayedMessageIsTimedOnce() {
@@ -159,4 +159,3 @@ final class ClaudeResponseTimingTests: XCTestCase {
         XCTAssertEqual(timings, [ResponseTiming(end: at(5), duration: 5, outputTokens: 400)])
     }
 }
-

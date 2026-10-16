@@ -1,8 +1,9 @@
 import XCTest
 @testable import OpenUsage
 
-/// The Output Speed row: the median of the last five minutes' timed responses, and how the pi and Codex
-/// log parsers time each response. Claude's transcript-chain timing lives in `ClaudeResponseTimingTests`.
+/// The Output Speed row: the median of the timed responses in the five minutes up to the latest one, and how
+/// the pi and Codex log parsers time each response. Claude's transcript-chain timing lives in
+/// `ClaudeResponseTimingTests`.
 final class OutputSpeedTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -28,14 +29,35 @@ final class OutputSpeedTests: XCTestCase {
         )
     }
 
-    func testIgnoresOlderShortAndUntimedResponses() {
+    func testWindowIsTheFiveMinutesUpToTheLatestResponse() {
+        // 42 tok/s finished last; 100 tok/s five minutes before it sits on the window's edge; 1000 tok/s just
+        // past that edge is out.
         let timings = [
-            timing(secondsAgo: 301, duration: 1, output: 1000),
-            timing(duration: 1, output: OutputSpeedMapper.minimumOutputTokens - 1),
-            timing(duration: 0, output: 500),
-            timing(secondsAgo: 300, duration: 10, output: 420)
+            timing(secondsAgo: 10, duration: 10, output: 420),
+            timing(secondsAgo: 310, duration: 10, output: 1000),
+            timing(secondsAgo: 310.5, duration: 1, output: 1000)
         ]
         XCTAssertEqual(OutputSpeedMapper.window, 300)
+        XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 71)
+    }
+
+    func testKeepsTheLastSessionsSpeedWhileIdle() {
+        // Two hours since the last reply: the row still reads that session's median rather than going blank.
+        let timings = [
+            timing(secondsAgo: 7_200, duration: 10, output: 900), timing(secondsAgo: 7_260, duration: 10, output: 700)
+        ]
+        XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 80)
+    }
+
+    func testIgnoresShortUntimedAndFutureResponses() {
+        let timings = [
+            timing(duration: 1, output: OutputSpeedMapper.minimumOutputTokens - 1),
+            timing(duration: 0, output: 500),
+            // Stamped an hour ahead, as after the clock was set back: not finished as far as `now` knows, so it
+            // neither counts nor moves the window.
+            timing(secondsAgo: -3_600, duration: 1, output: 1000),
+            timing(secondsAgo: 400, duration: 10, output: 420)
+        ]
         XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 42)
         XCTAssertNil(OutputSpeedMapper.medianTokensPerSecond(Array(timings.prefix(3)), now: now))
     }
@@ -51,7 +73,8 @@ final class OutputSpeedTests: XCTestCase {
 
     func testNoQualifyingResponseLeavesTheRowWithoutData() {
         var lines: [MetricLine] = []
-        OutputSpeedMapper.appendOutputSpeed([timing(secondsAgo: 900, duration: 10, output: 1000)], to: &lines, now: now)
+        OutputSpeedMapper.appendOutputSpeed([], to: &lines, now: now)
+        OutputSpeedMapper.appendOutputSpeed([timing(duration: 10, output: 20)], to: &lines, now: now)
         XCTAssertTrue(lines.isEmpty)
     }
 
@@ -95,7 +118,7 @@ final class OutputSpeedTests: XCTestCase {
         }
     }
 
-    func testPiTimingsStayOnTheirCardAndInTheWindow() throws {
+    func testPiTimingsStayOnTheirCardAndInTheScanWindow() throws {
         let timed = #""durationMs":6000,"#
         let entries = try [
             piLine(message: timed),
@@ -104,8 +127,7 @@ final class OutputSpeedTests: XCTestCase {
         ].map { try XCTUnwrap(PiUsageScanner.parseLine($0)) }
 
         let timings = PiUsageScanner.responseTimings(
-            entries: entries, cardID: "codex",
-            since: OutputSpeedMapper.windowStart(now: date("2026-10-15T07:02:00.000Z"))
+            entries: entries, cardID: "codex", since: date("2026-10-15T06:55:00.000Z")
         )
         XCTAssertEqual(timings, [ResponseTiming(end: date("2026-10-15T07:00:30.000Z"), duration: 6, outputTokens: 600)])
     }
@@ -179,6 +201,44 @@ final class OutputSpeedTests: XCTestCase {
 
         XCTAssertEqual(events.count, 2)
         XCTAssertTrue(events.allSatisfy { $0.responseStart == nil && $0.responseEnd == nil })
+    }
+
+    /// A tool output in Codex's own field order — timestamp and type first, its payload's type opening the
+    /// payload — too large for the reader to keep. `headFirst: false` moves the timestamp past the output.
+    private func oversizedToolOutput(_ timestamp: String, headFirst: Bool = true) -> String {
+        let output = String(repeating: "x", count: JSONLStreamingReader.maximumRecordBytes)
+        let payload = #"{"type":"custom_tool_call_output","call_id":"call-1","output":"\#(output)"}"#
+        return headFirst
+            ? #"{"timestamp":"\#(timestamp)","type":"response_item","payload":\#(payload)}"#
+            : #"{"payload":\#(payload),"timestamp":"\#(timestamp)","type":"response_item"}"#
+    }
+
+    func testCodexToolOutputTooLargeToReadStillMarksWhenTheNextRequestWentOut() async throws {
+        func scannedTimings(toolOutput: String) async throws -> [ResponseTiming] {
+            let home = try CodexLogFixture.makeHome(files: ["sessions/rollout.jsonl": [
+                taskStarted("2026-10-15T07:00:00.000Z"),
+                usageRecord("2026-10-15T07:00:05.000Z", output: 300),
+                // The tool ran for three minutes and returned more than the reader keeps.
+                toolOutput,
+                tokenCount("2026-10-15T07:03:15.010Z", output: 300),
+                usageRecord("2026-10-15T07:03:19.000Z", output: 200),
+                tokenCount("2026-10-15T07:03:19.010Z", output: 200)
+            ].joined(separator: "\n")])
+            defer { try? FileManager.default.removeItem(at: home) }
+            let scan = await CodexLogFixture.scanner(home: home).scan(
+                daysBack: 1, now: date("2026-10-15T07:05:00.000Z"), pricing: TestPricing.bundled
+            )
+            return try XCTUnwrap(scan).responseTimings
+        }
+
+        let dated = try await scannedTimings(toolOutput: oversizedToolOutput("2026-10-15T07:03:15.000Z"))
+        XCTAssertEqual(dated.map(\.duration), [5, 4])
+        // A head that doesn't show when the output landed leaves the next response untimed, rather than
+        // stretching it over the tool's three minutes.
+        let undated = try await scannedTimings(
+            toolOutput: oversizedToolOutput("2026-10-15T07:03:15.000Z", headFirst: false)
+        )
+        XCTAssertEqual(undated.map(\.duration), [5])
     }
 
     func testCodexChildSessionTimesOnlyItsOwnTurns() {
