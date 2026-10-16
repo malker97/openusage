@@ -156,26 +156,29 @@ struct CodexLogFileParser: Sendable {
         return events
     }
 
-    /// The reader dropped a record too large to keep and handed over its head instead.
+    /// The reader dropped a record too large to keep and handed over its head. Codex writes each line's
+    /// timestamp and type first and opens a tool output's payload with its own type, so the head shows
+    /// whether a tool output landed and when. A response item whose head doesn't show that might still be
+    /// one, so the pending request's start becomes unknown and its response goes untimed rather than
+    /// absorbing a tool's run time. No other kind of record moves the start.
     mutating func noteSkippedRecord(_ head: Data) {
-        guard replayGate == nil, head.range(of: Self.toolOutputMarker) != nil else { return }
-        noteToolOutput(head)
-    }
-
-    /// A tool's output landed, so the request carrying it can't have gone out before then. Codex writes
-    /// each line's timestamp and type first, so the head of a line too large to read still says both. An
-    /// output that can't be dated leaves the next request's start unknown: that response goes untimed
-    /// rather than absorbing the tool's run time.
-    private mutating func noteToolOutput(_ line: Data) {
-        let fields = JSONTopLevelScalars.values(in: line, keys: ["timestamp", "type"])
+        guard replayGate == nil else { return }
+        let fields = JSONTopLevelScalars.values(in: head, keys: ["timestamp", "type"])
         switch fields["type"] {
-        case "response_item"?:
+        case "response_item"? where head.range(of: Self.toolOutputMarker) != nil:
             requestSentAt = Self.date(fields["timestamp"]).map { max(requestSentAt ?? $0, $0) }
-        case nil:
+        case "response_item"?, nil:
             requestSentAt = nil
         default:
             break
         }
+    }
+
+    /// A tool's output landed, so the request carrying it can't have gone out before now.
+    private mutating func noteToolOutput(_ line: Data) {
+        let fields = JSONTopLevelScalars.values(in: line, keys: ["timestamp", "type"])
+        guard fields["type"] == "response_item", let landed = Self.date(fields["timestamp"]) else { return }
+        requestSentAt = max(requestSentAt ?? landed, landed)
     }
 
     /// A response finished: hold its timing for the `token_count` that follows, and treat its end as

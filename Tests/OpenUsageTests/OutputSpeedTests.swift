@@ -203,14 +203,19 @@ final class OutputSpeedTests: XCTestCase {
         XCTAssertTrue(events.allSatisfy { $0.responseStart == nil && $0.responseEnd == nil })
     }
 
-    /// A tool output in Codex's own field order — timestamp and type first, its payload's type opening the
-    /// payload — too large for the reader to keep. `headFirst: false` moves the timestamp past the output.
-    private func oversizedToolOutput(_ timestamp: String, headFirst: Bool = true) -> String {
+    /// Where a tool output too large for the reader to keep puts its fields. Codex writes the line's timestamp
+    /// and type first and opens the payload with the output's own type; the other layouts push one of those
+    /// past the head the parser gets to see.
+    private enum ToolOutputLayout: CaseIterable { case codex, timestampLast, payloadTypeLast }
+
+    private func oversizedToolOutput(_ timestamp: String, layout: ToolOutputLayout) -> String {
         let output = String(repeating: "x", count: JSONLStreamingReader.maximumRecordBytes)
-        let payload = #"{"type":"custom_tool_call_output","call_id":"call-1","output":"\#(output)"}"#
-        return headFirst
-            ? #"{"timestamp":"\#(timestamp)","type":"response_item","payload":\#(payload)}"#
-            : #"{"payload":\#(payload),"timestamp":"\#(timestamp)","type":"response_item"}"#
+        let payload = layout == .payloadTypeLast
+            ? #"{"call_id":"call-1","output":"\#(output)","type":"custom_tool_call_output"}"#
+            : #"{"type":"custom_tool_call_output","call_id":"call-1","output":"\#(output)"}"#
+        return layout == .timestampLast
+            ? #"{"payload":\#(payload),"timestamp":"\#(timestamp)","type":"response_item"}"#
+            : #"{"timestamp":"\#(timestamp)","type":"response_item","payload":\#(payload)}"#
     }
 
     func testCodexToolOutputTooLargeToReadStillMarksWhenTheNextRequestWentOut() async throws {
@@ -231,14 +236,14 @@ final class OutputSpeedTests: XCTestCase {
             return try XCTUnwrap(scan).responseTimings
         }
 
-        let dated = try await scannedTimings(toolOutput: oversizedToolOutput("2026-10-15T07:03:15.000Z"))
-        XCTAssertEqual(dated.map(\.duration), [5, 4])
-        // A head that doesn't show when the output landed leaves the next response untimed, rather than
-        // stretching it over the tool's three minutes.
-        let undated = try await scannedTimings(
-            toolOutput: oversizedToolOutput("2026-10-15T07:03:15.000Z", headFirst: false)
-        )
-        XCTAssertEqual(undated.map(\.duration), [5])
+        for layout in ToolOutputLayout.allCases {
+            let timings = try await scannedTimings(
+                toolOutput: oversizedToolOutput("2026-10-15T07:03:15.000Z", layout: layout)
+            )
+            // A head that doesn't show when a tool output landed, or that it was one at all, leaves the next
+            // response untimed rather than stretched over the tool's three minutes.
+            XCTAssertEqual(timings.map(\.duration), layout == .codex ? [5, 4] : [5], "\(layout)")
+        }
     }
 
     func testCodexChildSessionTimesOnlyItsOwnTurns() {
