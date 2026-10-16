@@ -19,12 +19,17 @@ struct MetricValue: Hashable, Sendable, Codable {
     /// True when the number is imputed locally rather than measured or billed — it drives the ⓘ note.
     /// Per value because a spend row's dollars are an estimate while its token count is real.
     var estimated: Bool
+    /// When a reading carried over from earlier activity was taken — Output Speed keeps the last session's
+    /// speed on screen while you're away. The row adds how long ago that was ("49 tok/s · 18m ago"). Nil
+    /// for a current reading and for every other value.
+    var asOf: Date?
 
-    init(number: Double, kind: MetricKind, label: String? = nil, estimated: Bool = false) {
+    init(number: Double, kind: MetricKind, label: String? = nil, estimated: Bool = false, asOf: Date? = nil) {
         self.number = number
         self.kind = kind
         self.label = label
         self.estimated = estimated
+        self.asOf = asOf
     }
 }
 

@@ -312,10 +312,22 @@ struct WidgetData: Hashable {
         return isBounded ? boundedHeadline : valueText
     }
 
+    /// When the row's reading was taken, if it's carried over from earlier activity (see `MetricValue.asOf`).
+    /// The row then shows its age, re-rendering on the popover's clock tick so the age stays live.
+    var readingAsOf: Date? {
+        hasData ? selectedValues.compactMap(\.asOf).max() : nil
+    }
+
     /// Right-aligned descriptive line for an unbounded row (no bar): just "<value> <word>". The word is
     /// `unboundedValueWord` when set (extras always read "1,503 left", spend rows "$12.34 spent");
     /// otherwise it falls back to the global left/used mode word.
     var unboundedDetail: String {
+        unboundedDetail(now: Date())
+    }
+
+    /// `unboundedDetail` at `now`: a reading carried over from earlier activity adds how long ago it was
+    /// taken ("49 tok/s · 18m ago").
+    func unboundedDetail(now: Date) -> String {
         guard hasData else { return Self.noDataSubtitle }
         if let valueTextOverride { return valueTextOverride }
         let selected = selectedValues
@@ -323,14 +335,21 @@ struct WidgetData: Hashable {
             // One value: a lone dollar amount takes the widget's trailing word ("$4.08 spent",
             // "$1,503 left"); any other single value carries its own unit label ("1.2M tokens",
             // "2 available"). Several values join into the combined reading ("$4.08 · 1.2M tokens").
+            let reading: String
             if selected.count == 1 {
                 let value = selected[0]
                 if value.kind == .dollars, let word = unboundedValueWord {
-                    return "\(MetricFormatter.number(value.number, kind: .dollars, style: .row)) \(word)"
+                    reading = "\(MetricFormatter.number(value.number, kind: .dollars, style: .row)) \(word)"
+                } else {
+                    reading = MetricFormatter.string(for: value, style: .row)
                 }
-                return MetricFormatter.string(for: value, style: .row)
+            } else {
+                reading = selected.map { MetricFormatter.string(for: $0, style: .row) }.joined(separator: " · ")
             }
-            return selected.map { MetricFormatter.string(for: $0, style: .row) }.joined(separator: " · ")
+            guard let asOf = readingAsOf, let age = Formatters.compactDuration(now.timeIntervalSince(asOf)) else {
+                return reading
+            }
+            return "\(reading) · \(age) ago"
         }
         // Fallback for an unbounded row without typed values: "<value> <suffix> <word>".
         let word = unboundedValueWord ?? displayMode.label.lowercased()

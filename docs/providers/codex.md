@@ -87,8 +87,8 @@ start of the turn, the previous reply finishing, or the last tool result it wait
 time spent running tools never counts as model time. Older Codex versions don't record when a reply
 finishes, so their turns aren't timed, and neither is usage imported from OpenCode. pi records each reply's
 duration itself, and those count on the same card. The row shows the median of the replies that finished in
-the five minutes up to your latest one, so it keeps your last session's speed while you're away; see the
-[dashboard](../dashboard.md#rows) for what the number includes.
+the five minutes up to your latest one, so it keeps your last session's speed, and how long ago it was, while
+you're away; see the [dashboard](../dashboard.md#rows) for what the number includes.
 
 ## Troubleshooting
 

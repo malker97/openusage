@@ -134,7 +134,8 @@ itself: each reply runs from the line that sent its request — your prompt, a t
 reply — to the reply's last block. When a request failed and Claude Code retried it, the reply is timed
 from the retry. pi records each reply's duration itself, and those count on the same card. The row shows
 the median of the replies that finished in the five minutes up to your latest one, so it keeps your last
-session's speed while you're away; see the [dashboard](../dashboard.md#rows) for what the number includes.
+session's speed, and how long ago it was, while you're away; see the [dashboard](../dashboard.md#rows) for
+what the number includes.
 
 ## Troubleshooting
 

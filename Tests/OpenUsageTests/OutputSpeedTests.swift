@@ -15,6 +15,10 @@ final class OutputSpeedTests: XCTestCase {
         OpenUsageISO8601.date(from: iso)!
     }
 
+    private func speed(_ timings: [ResponseTiming]) -> Double? {
+        OutputSpeedMapper.reading(timings, now: now)?.tokensPerSecond
+    }
+
     // MARK: - Mapper
 
     func testMedianOfResponsesThatFinishedInTheWindow() {
@@ -22,11 +26,9 @@ final class OutputSpeedTests: XCTestCase {
         let timings = [
             timing(duration: 10, output: 1000), timing(duration: 20, output: 1000), timing(duration: 10, output: 800)
         ]
-        XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 80)
+        XCTAssertEqual(speed(timings), 80)
         // A stalled 3 tok/s request makes the count even: the two middle speeds average.
-        XCTAssertEqual(
-            OutputSpeedMapper.medianTokensPerSecond(timings + [timing(duration: 100, output: 300)], now: now), 65
-        )
+        XCTAssertEqual(speed(timings + [timing(duration: 100, output: 300)]), 65)
     }
 
     func testWindowIsTheFiveMinutesUpToTheLatestResponse() {
@@ -38,7 +40,10 @@ final class OutputSpeedTests: XCTestCase {
             timing(secondsAgo: 310.5, duration: 1, output: 1000)
         ]
         XCTAssertEqual(OutputSpeedMapper.window, 300)
-        XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 71)
+        XCTAssertEqual(
+            OutputSpeedMapper.reading(timings, now: now),
+            OutputSpeedMapper.Reading(tokensPerSecond: 71, latest: now.addingTimeInterval(-10))
+        )
     }
 
     func testKeepsTheLastSessionsSpeedWhileIdle() {
@@ -46,7 +51,7 @@ final class OutputSpeedTests: XCTestCase {
         let timings = [
             timing(secondsAgo: 7_200, duration: 10, output: 900), timing(secondsAgo: 7_260, duration: 10, output: 700)
         ]
-        XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 80)
+        XCTAssertEqual(speed(timings), 80)
     }
 
     func testIgnoresShortUntimedAndFutureResponses() {
@@ -58,8 +63,8 @@ final class OutputSpeedTests: XCTestCase {
             timing(secondsAgo: -3_600, duration: 1, output: 1000),
             timing(secondsAgo: 400, duration: 10, output: 420)
         ]
-        XCTAssertEqual(OutputSpeedMapper.medianTokensPerSecond(timings, now: now), 42)
-        XCTAssertNil(OutputSpeedMapper.medianTokensPerSecond(Array(timings.prefix(3)), now: now))
+        XCTAssertEqual(speed(timings), 42)
+        XCTAssertNil(speed(Array(timings.prefix(3))))
     }
 
     func testRowCarriesTheRoundedSpeedInTokensPerSecond() {
@@ -76,6 +81,44 @@ final class OutputSpeedTests: XCTestCase {
         OutputSpeedMapper.appendOutputSpeed([], to: &lines, now: now)
         OutputSpeedMapper.appendOutputSpeed([timing(duration: 10, output: 20)], to: &lines, now: now)
         XCTAssertTrue(lines.isEmpty)
+    }
+
+    func testALastSessionsReadingShowsHowLongAgoItWas() {
+        // The latest reply finished 18 minutes ago, past the five-minute window: the last session's reading.
+        var lines: [MetricLine] = []
+        OutputSpeedMapper.appendOutputSpeed([timing(secondsAgo: 18 * 60, duration: 10, output: 490)], to: &lines, now: now)
+        let speed = MetricValue(number: 49, kind: .count, label: "tok/s", asOf: now.addingTimeInterval(-18 * 60))
+        XCTAssertEqual(lines, [.values(label: "Output Speed", values: [speed])])
+
+        let provider = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
+        var row = WidgetDescriptor.values(
+            id: "codex.outputSpeed", provider: provider, title: OutputSpeedMapper.label, selection: .kind(.count)
+        ).sample
+        row.values = [speed]
+        XCTAssertEqual(row.readingAsOf, speed.asOf)
+        XCTAssertEqual(row.unboundedDetail(now: now), "49 tok/s · 18m ago")
+        // The age keeps counting on the popover's clock tick between refreshes.
+        XCTAssertEqual(row.unboundedDetail(now: now.addingTimeInterval(60 * 60)), "49 tok/s · 1h 18m ago")
+    }
+
+    func testACurrentReadingShowsNoAge() {
+        // Five minutes on the dot is still the current window; a second past it, the last session's.
+        var lines: [MetricLine] = []
+        OutputSpeedMapper.appendOutputSpeed([timing(secondsAgo: 300, duration: 10, output: 490)], to: &lines, now: now)
+        OutputSpeedMapper.appendOutputSpeed([timing(secondsAgo: 301, duration: 10, output: 490)], to: &lines, now: now)
+        let asOfs = lines.map { line -> Date? in
+            guard case .values(_, let values, _, _, _, _) = line else { return nil }
+            return values.first?.asOf
+        }
+        XCTAssertEqual(asOfs, [nil, now.addingTimeInterval(-301)])
+
+        let provider = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
+        var row = WidgetDescriptor.values(
+            id: "codex.outputSpeed", provider: provider, title: OutputSpeedMapper.label, selection: .kind(.count)
+        ).sample
+        row.values = [MetricValue(number: 49, kind: .count, label: "tok/s")]
+        XCTAssertNil(row.readingAsOf)
+        XCTAssertEqual(row.unboundedDetail(now: now), "49 tok/s")
     }
 
     func testMergedScanKeepsEverySourcesTimings() {
