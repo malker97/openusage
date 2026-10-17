@@ -29,6 +29,7 @@ What each provider tracks, where its credentials come from, and what to do when 
 - [Codex](providers/codex.md)
 - [Copilot](providers/copilot.md)
 - [Cursor](providers/cursor.md)
+- [DeepSeek](providers/deepseek.md)
 - [Devin](providers/devin.md)
 - [Grok](providers/grok.md)
 - [Ollama](providers/ollama.md)

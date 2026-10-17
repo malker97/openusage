@@ -27,6 +27,7 @@ Either way, the app updates itself in place via signed, notarized [Sparkle](docs
 - **[Codex](docs/providers/codex.md)** — session, weekly, credits, local daily spend
 - **[Copilot](docs/providers/copilot.md)** — AI credits, extra usage, organization billing, chat and completions
 - **[Cursor](docs/providers/cursor.md)** — credits, total usage, Grok Bot, Cursor Models, Other Models, requests, on-demand, per-day spend
+- **[DeepSeek](docs/providers/deepseek.md)** — output speed from local pi logs (no account API needed)
 - **[Devin](docs/providers/devin.md)** — weekly and daily quota, extra usage balance
 - **[Grok](docs/providers/grok.md)** — weekly shared pool, pay-as-you-go, local daily spend
 - **[Ollama](docs/providers/ollama.md)** — Ollama Cloud session and weekly limits, recent activity spend

@@ -119,6 +119,8 @@ For bounded progress resources, `unit` follows the provider's live metric format
 
 Charts, colors, subtitles, formatted badges, layout state, and historical spend periods stay out of this
 contract. Codex's combined Credits UI row becomes two scalar resources: `credits` and `creditValue`.
+DeepSeek exports no resources: its card shows only output speed, which `/v1/usage` carries as a `text`
+line and `/v1/limits` reports as a provider entry with an empty `resources` map.
 
 ## Legacy usage response shape
 

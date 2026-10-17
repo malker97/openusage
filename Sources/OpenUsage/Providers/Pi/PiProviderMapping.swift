@@ -11,7 +11,8 @@ import Foundation
 ///
 /// Mapped here but not yet consumed (only Claude and Codex read the pi slice today; the rest have no
 /// local usage-trend card to fold into, or use a different spend path): `cursor` (Cursor's trend is
-/// built from its CSV export), `zai`/`zhipu`, `google-antigravity`, `github-copilot`.
+/// built from its CSV export), `zai`/`zhipu`, `google-antigravity`, `github-copilot`. `deepseek` is read
+/// by the DeepSeek card, which shows only its output speed.
 enum PiProviderMapping {
     /// pi `provider` value → OpenUsage `Provider.id`.
     static let providerToCard: [String: String] = [
@@ -19,6 +20,7 @@ enum PiProviderMapping {
         "claude-agent-sdk": "claude",
         "openai-codex": "codex",
         "cursor": "cursor",
+        "deepseek": "deepseek",
         "zai": "zai",
         "zhipu": "zai",
         "google-antigravity": "antigravity",

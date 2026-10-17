@@ -28,7 +28,8 @@ actor PiUsageScanner {
     private static let sharedScanner = IncrementalJSONLScanner<Entry>(
         logTag: LogTag.plugin("pi"),
         // v2: response durations for the Output Speed row, which reads back across the whole window.
-        persistence: JSONLScanCachePersistence(namespace: "pi", schemaVersion: 2)
+        // v3: the `deepseek` card mapping — v2 parses dropped DeepSeek lines, so cached files must re-parse.
+        persistence: JSONLScanCachePersistence(namespace: "pi", schemaVersion: 3)
     )
 
     static func flushPersistentCacheWrites() async {
@@ -92,6 +93,22 @@ actor PiUsageScanner {
         )
         scan.responseTimings = Self.responseTimings(entries: deduped, cardID: cardID, since: since)
         return scan
+    }
+
+    /// The card's timed responses alone, for a card that shows nothing else (DeepSeek). Shares the parse
+    /// cache with `scan`, so pi's logs are still read once; nil when pi has no log files at all.
+    func timings(cardID: String, daysBack: Int = 30, now: Date = Date()) async -> [ResponseTiming]? {
+        let directory = PiPaths.sessionsDirectory(environment: environment, homeDirectory: homeDirectory())
+        let since = JSONLScanning.sinceDate(daysBack: daysBack, now: now)
+        let files = JSONLScanning.jsonlFiles(under: directory)
+        guard !files.isEmpty else { return nil }
+        guard let entries = await scanner.items(
+            from: files,
+            since: since,
+            cacheIdentity: directory.resolvingSymlinksInPath().path,
+            parse: Self.parseFile
+        ), !Task.isCancelled else { return nil }
+        return Self.responseTimings(entries: Self.dedup(entries), cardID: cardID, since: since)
     }
 
     // MARK: - Parsing

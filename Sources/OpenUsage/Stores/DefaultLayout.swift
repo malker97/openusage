@@ -36,6 +36,8 @@ enum DefaultLayout {
         "copilot.premium", "copilot.extra", "copilot.orgCredits", "copilot.orgSpend",
         "copilot.chat", "copilot.completions",
 
+        "deepseek.outputSpeed",
+
         "devin.daily", "devin.weekly", "devin.extra",
 
         "grok.weekly", "grok.trend",
