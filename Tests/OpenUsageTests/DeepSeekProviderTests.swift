@@ -71,8 +71,9 @@ final class DeepSeekProviderTests: XCTestCase {
     func testRefreshShowsTheMedianSpeedOfDeepSeekReplies() async throws {
         let home = try makePiHome([
             // 100 tok/s and 300 tok/s: the median of the two is 200. Other providers' replies stay off this card.
-            assistantLine(id: "d1", durationMs: 2_000, output: 200),
-            assistantLine(id: "d2", durationMs: 1_000, output: 300),
+            // Both finished a minute before `now`, so the reading is current and carries no age.
+            assistantLine(id: "d1", at: "2026-10-17T18:29:00.000Z", durationMs: 2_000, output: 200),
+            assistantLine(id: "d2", at: "2026-10-17T18:29:30.000Z", durationMs: 1_000, output: 300),
             assistantLine(id: "c1", provider: "claude-agent-sdk", model: "claude-opus-5-5", durationMs: 1_000, output: 900)
         ])
         defer { try? FileManager.default.removeItem(at: home) }
@@ -88,6 +89,8 @@ final class DeepSeekProviderTests: XCTestCase {
 
     func testFailedDeepSeekRepliesAreNotTimed() async throws {
         let home = try makePiHome([
+            // A failed reply with plenty of output must not count. The good reply finished ten minutes before
+            // `now`, so it is the last session's reading and carries when it was taken.
             assistantLine(id: "d1", durationMs: 2_000, output: 500, stopReason: "error"),
             assistantLine(id: "d2", durationMs: 2_000, output: 200)
         ])
@@ -96,7 +99,12 @@ final class DeepSeekProviderTests: XCTestCase {
         let snapshot = await provider(piHome: home).refresh()
 
         XCTAssertEqual(snapshot.lines, [
-            .values(label: "Output Speed", values: [MetricValue(number: 100, kind: .count, label: "tok/s")])
+            .values(label: "Output Speed", values: [
+                MetricValue(
+                    number: 100, kind: .count, label: "tok/s",
+                    asOf: date("2026-10-17T18:20:00.000Z")
+                )
+            ])
         ])
     }
 
